@@ -375,6 +375,10 @@ body{font-family:var(--f-ui)}
 .ag-item.done .ag-name{text-decoration:line-through;text-decoration-thickness:1.5px}
 .ag-item.done .ag-hrs{display:none}
 .ag-item.done .ag-num{background:var(--accent-soft);color:var(--accent-d)}
+.ag-hint{font-size:11.5px;color:var(--ink2);margin:-6px 0 12px;opacity:.9}
+.ag-hint b{color:var(--ink)}
+.ag-num.tick{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%, transparent)}
+.ag-item.done .ag-num.tick{box-shadow:none}
 .ag-name a{color:inherit;text-decoration:none;border-bottom:1.5px solid var(--accent-soft)}
 .ag-desc{font-size:13.5px;color:var(--ink2);font-weight:500;margin-top:2px}
 .ag-go{display:flex;align-items:center;gap:9px;margin:9px 0 13px;font-size:12.5px;color:var(--ink2);font-weight:600}
@@ -1102,6 +1106,7 @@ function renderDay(day){
   if(p.msg) h+='<div class="ag-msg">'+p.msg+'</div>';
   if(p.stops){
     h+='<div class="ag-prog"><div class="ag-prog-bar"><i></i></div><span class="ag-prog-lbl">0/0 feito</span><button type="button" class="ag-prog-reset" onclick="clearDoneDay(\''+day+'\')">limpar</button></div>';
+    h+='<div class="ag-hint">👉 Toque no <b>número</b> da parada para marcar como feita ✓</div>';
     h+='<ul class="ag-list">';
     p.stops.forEach(function(s,i){
       var info={}; var a=DET[s.q], b=DET[s.name];
