@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Viagem">
+<meta name="theme-color" content="#151515">
+<title>Lisboa ✕ Amsterdã · Julho 2026</title>
+<!-- fontes nativas do sistema — 100% offline, sem chamadas externas -->
+<!-- mapa real (Leaflet + OpenStreetMap) — carrega só quando há internet -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+  --paper:#f5eee2; --paper2:#efe5d5; --ink:#211a15; --ink2:#6a5c4f;
+  --line:#e4d6c0; --card:#fdf9f2; --cardline:#ece0cd;
+  --pt:#c1542a;  --ptd:#98380f;  --ptsoft:#f4ddce;
+  --nl:#1c5498;  --nld:#123f77;  --nlsoft:#d7e4f2; --nlorange:#e07a2f;
+  --pop:#d7386a; --popd:#ad1a4c; --popsoft:#f8d8e4;
+  --gold:#b5872b;--goldd:#856012;
+  --ok:#3f7d55;  --okd:#2c6440;  --oksoft:#dcefe1;
+  --r:22px; --maxw:500px;
+  --sp:cubic-bezier(.34,1.56,.64,1);        /* mola / overshoot */
+  --ease:cubic-bezier(.4,0,.2,1);
+  --sh-sm:0 4px 14px -10px rgba(60,38,18,.45);
+  --sh:0 16px 40px -20px rgba(60,38,18,.5);
+  --accent:var(--pt); --accent-d:var(--ptd); --accent-soft:var(--ptsoft);
+}
+body[data-accent="nl"]{--accent:var(--nl);--accent-d:var(--nld);--accent-soft:var(--nlsoft)}
+body[data-accent="gold"]{--accent:var(--gold);--accent-d:var(--goldd);--accent-soft:#f3e6c8}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  font-family:"Hanken Grotesk",system-ui,sans-serif; font-size:16px; line-height:1.5;
+  color:var(--ink); background:var(--paper);
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  padding-bottom:calc(92px + env(safe-area-inset-bottom));
+  overflow-x:hidden;
+  transition:background .6s var(--ease);
+}
+body::after{ /* wash de cor que muda por seção */
+  content:""; position:fixed; inset:0 0 auto; height:60vh; pointer-events:none; z-index:0; opacity:.5;
+  background:radial-gradient(120% 80% at 80% -20%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%);
+  transition:background .6s var(--ease), opacity .6s var(--ease);
+}
+body::before{ content:""; position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.04;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+.wrap{max-width:var(--maxw); margin:0 auto; position:relative; z-index:2}
+
+/* ---------- APP BAR ---------- */
+.appbar{
+  position:sticky; top:0; z-index:30;
+  padding:calc(10px + env(safe-area-inset-top)) 18px 10px;
+  display:flex; align-items:center; gap:12px;
+  background:color-mix(in srgb, var(--paper) 78%, transparent);
+  backdrop-filter:saturate(1.4) blur(18px); -webkit-backdrop-filter:saturate(1.4) blur(18px);
+  border-bottom:1px solid transparent; transition:border-color .3s, box-shadow .3s;
+}
+.appbar.scrolled{border-color:var(--line); box-shadow:0 6px 20px -18px rgba(60,38,18,.7)}
+.appbar .brand{font-family:"Fraunces",serif; font-weight:600; font-size:17px; letter-spacing:-.01em; line-height:1}
+.appbar .brand i{font-style:italic; color:var(--accent); transition:color .5s}
+.appbar .sec{margin-left:auto; font-family:"DM Mono",monospace; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink2); font-weight:500}
+.progress{position:absolute; left:0; bottom:0; height:2.5px; width:0; background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 40%, #e07a2f)); transition:width .1s linear; border-radius:0 3px 3px 0}
+
+/* ---------- VIEWS ---------- */
+.view{display:none; padding:8px 16px 24px}
+.view.active{display:block}
+/* reveal com stagger ao ativar a view */
+.view.active .reveal{animation:rise .55s var(--sp) both}
+.view.active .reveal:nth-child(1){animation-delay:.02s}
+.view.active .reveal:nth-child(2){animation-delay:.06s}
+.view.active .reveal:nth-child(3){animation-delay:.10s}
+.view.active .reveal:nth-child(4){animation-delay:.14s}
+.view.active .reveal:nth-child(5){animation-delay:.18s}
+.view.active .reveal:nth-child(6){animation-delay:.22s}
+.view.active .reveal:nth-child(7){animation-delay:.26s}
+.view.active .reveal:nth-child(8){animation-delay:.30s}
+.view.active .reveal:nth-child(9){animation-delay:.34s}
+.view.active .reveal:nth-child(10){animation-delay:.38s}
+.view.active .reveal:nth-child(n+11){animation-delay:.42s}
+@keyframes rise{from{opacity:0; transform:translateY(22px) scale(.98)}to{opacity:1; transform:none}}
+
+/* ---------- HERO (só no roteiro) ---------- */
+.hero{position:relative; padding:26px 6px 18px}
+.hero .kick{font-family:"DM Mono",monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--pt); font-weight:500; display:flex; align-items:center; gap:9px}
+.hero .kick::after{content:""; height:1px; flex:1; background:linear-gradient(90deg,var(--line),transparent)}
+.hero h1{font-family:"Fraunces",serif; font-weight:600; font-size:clamp(46px,15vw,74px); line-height:.9; letter-spacing:-.03em; margin:16px 0 0; padding-right:64px}
+.hero h1 .x{font-style:italic; font-weight:400; color:var(--nl); display:inline-block; padding:0 .04em; animation:sway 6s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+.hero .sub{color:var(--ink2); font-size:15.5px; font-weight:500; margin-top:14px; max-width:34ch}
+.hero .sub b{color:var(--ink); font-weight:700}
+.hero .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:16px}
+.hero .chips span{font-size:12px; font-weight:700; padding:6px 12px; border-radius:999px; background:var(--card); border:1px solid var(--cardline); box-shadow:var(--sh-sm)}
+.count{margin-top:18px; display:inline-flex; align-items:center; gap:12px; background:var(--ink); color:var(--paper); border-radius:18px; padding:12px 18px; box-shadow:var(--sh)}
+.count .big{font-family:"Fraunces",serif; font-weight:700; font-size:30px; line-height:1; color:#f3c9a3}
+.count .lbl{font-size:12.5px; font-weight:600; line-height:1.25; opacity:.9}
+.stamp{position:absolute; top:20px; right:2px; width:78px; height:78px; border:2px solid var(--pt); color:var(--pt); border-radius:50%; display:grid; place-items:center; text-align:center; transform:rotate(-12deg); font-family:"Fraunces",serif; font-weight:700; font-size:12px; line-height:1.05; background:color-mix(in srgb,var(--card) 55%, transparent)}
+.stamp span{font-family:"DM Mono",monospace; font-size:8px; letter-spacing:.1em; display:block; margin-top:3px; font-weight:500}
+
+/* ---------- VIEW HEAD (abas internas) ---------- */
+.view-head{padding:22px 4px 8px}
+.view-head .ey{font-family:"DM Mono",monospace; font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); font-weight:500; transition:color .5s}
+.view-head h2{font-family:"Fraunces",serif; font-weight:600; font-size:38px; letter-spacing:-.02em; line-height:1; margin-top:6px}
+.view-head p{font-size:14px; color:var(--ink2); font-weight:500; margin-top:8px}
+
+/* ---------- DAY CARD ---------- */
+.day{background:var(--card); border:1px solid var(--cardline); border-radius:var(--r); margin-bottom:14px; box-shadow:var(--sh-sm); overflow:hidden; position:relative}
+.day::before{content:""; position:absolute; left:0; top:0; bottom:0; width:5px; background:var(--pt)}
+.day.nl::before{background:var(--nl)}
+.day.flex::before{background:repeating-linear-gradient(180deg,var(--gold) 0 8px, transparent 8px 15px)}
+.day-top{width:100%; text-align:left; background:none; border:0; cursor:pointer; padding:16px 16px 16px 20px; display:flex; align-items:center; gap:15px; color:inherit; font-family:inherit; transition:background .2s}
+.day-top:active{background:var(--paper2)}
+.dnum{flex:none; width:56px; height:58px; border-radius:15px; background:var(--paper2); border:1px solid var(--cardline); display:grid; place-items:center; text-align:center; transition:transform .4s var(--sp)}
+.day.open .dnum{transform:scale(1.06) rotate(-3deg); background:var(--accent-soft)}
+.dnum .d{font-family:"Fraunces",serif; font-weight:700; font-size:25px; line-height:1}
+.dnum .m{font-family:"DM Mono",monospace; font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink2); margin-top:3px}
+.day-meta{flex:1; min-width:0}
+.day-meta .wd{font-family:"DM Mono",monospace; font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--pt); font-weight:500}
+.day.nl .day-meta .wd{color:var(--nl)} .day.flex .day-meta .wd{color:var(--goldd)}
+.day-meta .tt{font-family:"Fraunces",serif; font-size:20px; font-weight:600; letter-spacing:-.01em; margin-top:2px; line-height:1.1}
+.chev{flex:none; width:30px; height:30px; border-radius:50%; border:1px solid var(--cardline); display:grid; place-items:center; transition:transform .4s var(--sp), background .3s; color:var(--ink2); font-size:13px}
+.day.open .chev{transform:rotate(180deg); background:var(--accent-soft); border-color:transparent}
+.day-body{display:grid; grid-template-rows:0fr; transition:grid-template-rows .5s var(--ease)}
+.day.open .day-body{grid-template-rows:1fr}
+.day-body>div{overflow:hidden}
+.day-inner{padding:0 18px 20px 20px}
+.day-inner>*{opacity:0; transform:translateY(10px); transition:opacity .4s ease .1s, transform .45s var(--sp) .1s}
+.day.open .day-inner>*{opacity:1; transform:none}
+
+/* timeline */
+.tl{list-style:none; position:relative; margin-left:4px; padding-left:22px}
+.tl::before{content:""; position:absolute; left:5px; top:8px; bottom:14px; width:2px; background:linear-gradient(var(--cardline),transparent)}
+.tl li{position:relative; padding:0 0 18px}
+.tl li:last-child{padding-bottom:2px}
+.tl li::before{content:""; position:absolute; left:-21px; top:5px; width:11px; height:11px; border-radius:50%; background:var(--pt); box-shadow:0 0 0 4px var(--card)}
+.day.nl .tl li::before{background:var(--nl)} .day.flex .tl li::before{background:var(--gold)}
+.slot{font-family:"DM Mono",monospace; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink2)}
+.slot b{color:var(--pt); font-weight:500} .day.nl .slot b{color:var(--nl)}
+.tl h4{font-size:16.5px; font-weight:700; margin:3px 0 4px; line-height:1.28}
+.tl p{font-size:14.5px; color:var(--ink2); font-weight:500}
+.mapchip{display:inline-flex; align-items:center; gap:5px; margin-top:8px; font-size:12.5px; font-weight:700; color:var(--nl); text-decoration:none; background:var(--nlsoft); padding:6px 11px; border-radius:999px; transition:transform .15s}
+.day.pt .mapchip{color:var(--ptd); background:var(--ptsoft)}
+.mapchip:active{transform:scale(.94)}
+
+/* ---------- GUIDE / PLACE ---------- */
+.cat{font-family:"Fraunces",serif; font-weight:600; font-size:22px; margin:26px 4px 12px; display:flex; align-items:center; gap:10px; letter-spacing:-.01em}
+.cat .ico{font-size:20px}
+.place{display:flex; flex-direction:column; text-decoration:none; color:inherit; background:var(--card); border:1px solid var(--cardline); border-radius:16px; padding:15px 16px; margin-bottom:10px; box-shadow:var(--sh-sm); transition:transform .18s var(--sp), box-shadow .25s; position:relative; overflow:hidden}
+.place::after{content:"↗"; position:absolute; top:14px; right:15px; font-size:14px; color:var(--ink2); opacity:.5; transition:transform .25s, opacity .25s}
+.place:active{transform:scale(.98)}
+.place:active::after{transform:translate(2px,-2px); opacity:1}
+.place .pn{font-weight:800; font-size:16.5px; line-height:1.2; padding-right:22px}
+.place .pl{font-family:"DM Mono",monospace; font-size:11.5px; color:var(--ink2); margin-top:4px; letter-spacing:.01em}
+.place .pd{font-size:14px; color:var(--ink2); font-weight:500; margin-top:8px}
+.tags{display:flex; flex-wrap:wrap; gap:7px; margin-top:11px}
+.tag{font-size:11px; font-weight:700; letter-spacing:.01em; padding:4px 10px; border-radius:999px; background:var(--paper2); color:var(--ink2); border:1px solid var(--cardline)}
+.tag.pin{background:var(--accent-soft); color:var(--accent-d); border-color:transparent}
+.tag.eur{background:var(--ptsoft); color:var(--ptd); border-color:transparent}
+.tag.free{background:var(--oksoft); color:var(--okd); border-color:transparent}
+.tag.book{background:var(--nlsoft); color:var(--nld); border-color:transparent}
+.tag.kpop{background:var(--popsoft); color:var(--popd); border-color:transparent}
+.tag.nec{background:#f6d7d0; color:#a3341a; border-color:transparent}
+.tag.muito{background:#fbe3c7; color:#8a5311; border-color:transparent}
+.tag.quero{background:var(--nlsoft); color:var(--nld); border-color:transparent}
+.tag.op{background:var(--paper2); color:var(--ink2)}
+.legend{display:flex; flex-wrap:wrap; gap:8px; margin:2px 2px 6px; font-size:11.5px; font-weight:700}
+.legend span{display:inline-flex; align-items:center; gap:5px; color:var(--ink2)}
+.legend b{width:9px; height:9px; border-radius:50%; display:inline-block}
+.rt-h{font-family:"Fraunces",serif; font-weight:600; font-size:16px; margin:20px 4px 10px; display:flex; align-items:center; gap:8px; color:var(--accent-d)}
+.rt-h .n{flex:none; width:22px; height:22px; border-radius:8px; background:var(--accent-soft); color:var(--accent-d); display:grid; place-items:center; font-family:"DM Mono",monospace; font-size:12px; font-weight:500}
+
+/* callout */
+.note{border-radius:16px; padding:14px 16px; margin:12px 0 4px; font-size:14px; font-weight:500; line-height:1.45; display:flex; gap:11px}
+.note .ni{font-size:17px; flex:none}
+.note.tip{background:var(--ptsoft); color:#7a3417}
+.note.nl{background:var(--nlsoft); color:#173a5c}
+.note.warn{background:#f6e6c6; color:#775411}
+
+/* dropzone (lista dela) */
+.dropzone{border:2.5px dashed var(--pop); border-radius:18px; background:linear-gradient(180deg,#fdeff4,#fcf1f5); padding:22px 18px; text-align:center; margin:6px 0 4px; position:relative; overflow:hidden}
+.dropzone::before{content:""; position:absolute; inset:0; background:radial-gradient(80% 60% at 50% 0%, rgba(215,56,106,.10), transparent 70%)}
+.dropzone .dz{font-size:30px; position:relative}
+.dropzone h4{font-family:"Fraunces",serif; font-size:20px; font-weight:600; margin:8px 0 5px; color:var(--popd); position:relative}
+.dropzone p{font-size:14px; color:#8a3155; font-weight:500; position:relative; max-width:36ch; margin:0 auto}
+
+/* info */
+.flight{background:var(--card); border:1px solid var(--cardline); border-radius:16px; padding:15px 16px; margin-bottom:10px; box-shadow:var(--sh-sm); display:flex; align-items:center; gap:12px}
+.flight .route{font-family:"Fraunces",serif; font-weight:700; font-size:19px; display:flex; align-items:center; gap:9px; letter-spacing:-.01em}
+.flight .route .ar{color:var(--nl); font-style:italic}
+.flight .fd{font-size:12.5px; color:var(--ink2); font-weight:600; margin-top:3px}
+.flight .ft{margin-left:auto; font-family:"DM Mono",monospace; font-weight:500; font-size:16px; text-align:right; line-height:1.3}
+.flight .ft span{display:block; font-size:10px; letter-spacing:.06em; color:var(--ink2)}
+.kv{background:var(--card); border:1px solid var(--cardline); border-radius:16px; padding:4px 16px; margin-bottom:10px; box-shadow:var(--sh-sm)}
+.kv .row{display:flex; gap:14px; padding:12px 0; border-bottom:1px solid var(--cardline); font-size:14px}
+.kv .row:last-child{border:0}
+.kv .k{font-weight:800; flex:none; width:88px}
+.kv .v{color:var(--ink2); font-weight:500}
+.kv .v b{color:var(--ink); font-weight:700}
+.check{list-style:none}
+.check li{background:var(--card); border:1px solid var(--cardline); border-radius:14px; padding:13px 15px 13px 44px; margin-bottom:9px; position:relative; font-size:14px; font-weight:700; box-shadow:var(--sh-sm)}
+.check li::before{content:""; position:absolute; left:15px; top:14px; width:17px; height:17px; border-radius:50%; border:2px solid var(--pt)}
+.check li.done{color:var(--ink2)}
+.check li.done::before{content:"✓"; border-color:var(--ok); background:var(--ok); color:#fff; font-size:11px; font-weight:800; display:grid; place-items:center; line-height:1}
+.check li small{display:block; font-weight:500; color:var(--ink2); font-size:12.5px; margin-top:3px}
+
+.foot{text-align:center; padding:24px 20px 8px; color:var(--ink2); font-size:12.5px; font-weight:500; line-height:1.6}
+.foot b{color:var(--pt)}
+
+/* ---------- BOTTOM NAV ---------- */
+.nav{position:fixed; left:0; right:0; bottom:0; z-index:40; padding:9px 12px calc(9px + env(safe-area-inset-bottom));
+  background:color-mix(in srgb,var(--paper) 80%, transparent); backdrop-filter:saturate(1.4) blur(20px); -webkit-backdrop-filter:saturate(1.4) blur(20px); border-top:1px solid var(--line)}
+.nav-in{max-width:var(--maxw); margin:0 auto; position:relative; display:grid; grid-template-columns:repeat(5,1fr)}
+.pill{position:absolute; top:0; left:0; width:20%; height:100%; padding:0 6px; z-index:0; transition:transform .45s var(--sp)}
+.pill i{display:block; width:100%; height:100%; border-radius:15px; background:var(--accent-soft); transition:background .4s}
+.nav button{position:relative; z-index:1; background:none; border:0; cursor:pointer; font-family:inherit; color:var(--ink2); padding:9px 2px 5px; border-radius:15px; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10.5px; font-weight:700; letter-spacing:.01em; transition:color .25s}
+.nav button .ni{font-size:20px; line-height:1; transition:transform .4s var(--sp)}
+.nav button.on{color:var(--accent-d)}
+.nav button.on .ni{transform:translateY(-3px) scale(1.15)}
+
+.nav button:focus-visible,.day-top:focus-visible,.place:focus-visible,.mapchip:focus-visible{outline:2.5px solid var(--nl); outline-offset:2px}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important; transition-duration:.001ms !important}
+  html{scroll-behavior:auto}
+  .view.active .reveal{animation:none}
+}
+</style>
+<style>
+/* ===================== TEMA DARK + LIME (estilo da referência) ===================== */
+:root{
+  --paper:#151515; --paper2:#222221; --ink:#f2f2ee; --ink2:#9c9c95;
+  --line:#302f2c; --card:#1e1e1c; --cardline:#333330;
+  --lime:#cbf149; --lime-ink:#0f1804;
+  --pt:#cbf149;  --ptd:#cbf149;  --ptsoft:rgba(203,241,73,.16);
+  --nl:#cbf149;  --nld:#cbf149;  --nlsoft:rgba(203,241,73,.16); --nlorange:#ffb84d;
+  --pop:#ff6fa5; --popd:#ff92bd; --popsoft:rgba(255,111,165,.16);
+  --gold:#ffc35c;--goldd:#ffc35c;
+  --ok:#7ee081;  --okd:#95e698;  --oksoft:rgba(126,224,129,.16);
+  --r:26px;
+  --sh-sm:0 8px 22px -16px rgba(0,0,0,.75);
+  --sh:0 24px 50px -26px rgba(0,0,0,.85);
+  --accent:var(--lime); --accent-d:var(--lime); --accent-soft:rgba(203,241,73,.18);
+}
+body[data-accent="pt"],body[data-accent="nl"],body[data-accent="gold"]{
+  --accent:var(--lime); --accent-d:var(--lime); --accent-soft:rgba(203,241,73,.18);
+}
+body{background:#141413; background-image:radial-gradient(120% 70% at 85% -8%, rgba(203,241,73,.10), transparent 55%); color:var(--ink)}
+body::after{background:radial-gradient(120% 80% at 82% -18%, rgba(203,241,73,.14), transparent 60%); opacity:.7}
+body::before{opacity:.05}
+
+/* tipografia grotesk (sem serifa, feel do app) */
+:root{--f-ui:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,sans-serif; --f-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+body{font-family:var(--f-ui)}
+.appbar .brand,.hero h1,.hero .count .big,.view-head h2,.day-meta .tt,.dnum .d,
+.cat,.flight .route,.rt-h,.dropzone h4,.stamp{font-family:var(--f-ui) !important; letter-spacing:-.02em}
+.appbar .sec,.hero .kick,.view-head .ey,.slot,.slot b,.dnum .m,.day-meta .wd,.flight .ft,.flight .ft span,.stamp span,.ckwrap .ck-top .cnt,.count .lbl{font-family:var(--f-mono) !important}
+.hero h1,.view-head h2{font-weight:800}
+.day-meta .tt,.cat,.flight .route{font-weight:800}
+.appbar .brand i{font-style:normal; color:var(--lime)}
+.hero h1 .x{color:var(--lime)}
+.hero .kick,.view-head .ey,.slot b,.foot b{color:var(--lime)}
+
+/* app bar + progress */
+.appbar{background:rgba(20,20,19,.72)}
+.appbar.scrolled{border-color:var(--line); box-shadow:0 10px 26px -22px #000}
+.progress{background:linear-gradient(90deg,var(--lime),#9bd400)}
+
+/* hero */
+.stamp{border-color:var(--lime); color:var(--lime); background:rgba(203,241,73,.06)}
+.hero .chips span{background:var(--card); border-color:var(--cardline); color:var(--ink)}
+.count{background:var(--lime); color:var(--lime-ink); box-shadow:0 18px 40px -22px rgba(203,241,73,.5)}
+.count .big{color:var(--lime-ink)}
+.count .lbl{color:var(--lime-ink); opacity:.85; font-weight:700}
+
+/* cards de dia */
+.day{background:var(--card); border-color:var(--cardline)}
+.day::before,.day.nl::before{background:var(--lime)}
+.day.flex::before{background:repeating-linear-gradient(180deg,var(--gold) 0 8px, transparent 8px 15px)}
+.day-top:active{background:rgba(255,255,255,.03)}
+.dnum{background:var(--paper2); border-color:var(--cardline)}
+.day.open .dnum{background:var(--lime)}
+.day.open .dnum .d,.day.open .dnum .m{color:var(--lime-ink)}
+.day-meta .wd{color:var(--lime)}
+.day.flex .day-meta .wd{color:var(--gold)}
+.chev{border-color:var(--cardline); color:var(--ink2)}
+.day.open .chev{background:var(--lime); color:var(--lime-ink)}
+.tl li::before,.day.nl .tl li::before{background:var(--lime)}
+.day.flex .tl li::before{background:var(--gold)}
+.tl a.map,.mapchip,.day.pt .mapchip{color:var(--lime); background:rgba(203,241,73,.14)}
+
+/* guia / places */
+.place{background:var(--card); border-color:var(--cardline); border-radius:20px}
+.place::after{color:var(--ink2)}
+.place .pd,.place .pl{color:var(--ink2)}
+/* barra de prioridade (itens da lista dela) — via :has() */
+.place:has(.tag.op){border-left:5px solid #9a9a92}
+.place:has(.tag.quero){border-left:5px solid #5aa0ff}
+.place:has(.tag.muito){border-left:5px solid #f0a33a}
+.place:has(.tag.nec){border-left:5px solid #e5533f}
+.place.fromlist{border-left:5px solid var(--lime)}
+.rt-h{color:var(--lime)}
+.rt-h .n{background:var(--lime); color:var(--lime-ink)}
+
+/* tags no dark */
+.tag{background:rgba(255,255,255,.07); color:var(--ink2); border-color:rgba(255,255,255,.08)}
+.tag.pin,.tag.book{background:rgba(203,241,73,.15); color:var(--lime); border-color:transparent}
+.tag.eur{background:rgba(255,255,255,.07); color:#deded6; border-color:transparent}
+.tag.free{background:rgba(126,224,129,.16); color:#93e796; border-color:transparent}
+.tag.kpop{background:rgba(255,111,165,.16); color:#ff92bd; border-color:transparent}
+.tag.nec{background:rgba(255,107,90,.16); color:#ff9182; border-color:transparent}
+.tag.muito{background:rgba(255,184,77,.16); color:#ffc774; border-color:transparent}
+.tag.quero{background:rgba(120,175,255,.16); color:#9cc7ff; border-color:transparent}
+.tag.op{background:rgba(255,255,255,.06); color:#9c9c95; border-color:transparent}
+
+/* callouts */
+.note.tip{background:rgba(203,241,73,.10); color:#e0efaf}
+.note.nl{background:rgba(120,170,255,.10); color:#c3d6ff}
+.note.warn{background:rgba(255,184,77,.10); color:#f4d3a0}
+
+/* info */
+.flight,.kv,.check li{background:var(--card); border-color:var(--cardline)}
+.flight .route .ar{color:var(--lime)}
+.flight .ft span,.fd,.kv .v,.check li small{color:var(--ink2)}
+.kv .row{border-color:var(--cardline)}
+.check li::before{border-color:var(--lime)}
+.check li.done::before{background:var(--ok); border-color:var(--ok); color:var(--lime-ink)}
+
+/* bottom nav */
+.nav{background:rgba(18,18,17,.82); border-top-color:var(--line)}
+.pill i{background:var(--lime)}
+.nav button{color:var(--ink2)}
+.nav button.on{color:var(--lime-ink)}
+
+/* checklist de embarque (interativo) */
+.ckwrap{background:var(--card); border:1px solid var(--cardline); border-radius:18px; padding:14px 16px; margin-bottom:10px; box-shadow:var(--sh-sm)}
+.ckwrap .ck-top{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:9px}
+.ckwrap .ck-top b{font-family:"Hanken Grotesk",sans-serif; font-weight:800; font-size:14px}
+.ckwrap .ck-top .cnt{font-family:"DM Mono",monospace; font-size:12px; color:var(--lime); font-weight:500}
+.ck-bar{height:9px; border-radius:99px; background:var(--paper2); overflow:hidden}
+.ck-bar i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--lime),#9bd400); transition:width .45s var(--ease)}
+.check.todo li{cursor:pointer; user-select:none; transition:transform .12s, background .2s}
+.check.todo li:active{transform:scale(.99)}
+.check.todo li.done{background:rgba(203,241,73,.06)}
+.check.todo li.done::before{content:"✓"; background:var(--lime); border-color:var(--lime); color:var(--lime-ink)}
+.check.todo li:focus-visible{outline:2.5px solid var(--lime); outline-offset:2px}
+
+/* agenda por horário + mapa do dia */
+.daymap{height:200px;border-radius:16px;overflow:hidden;margin:2px 0 16px;border:1px solid var(--cardline);background:var(--paper2)}
+.daymap .ldg{display:flex;height:100%;align-items:center;justify-content:center;text-align:center;color:var(--ink2);font-size:13px;font-weight:600;padding:0 24px;line-height:1.5}
+.leaflet-container{background:#20201e;font-family:var(--f-ui)}
+.ag-list{list-style:none;position:relative;margin:0 0 0 4px;padding-left:28px}
+.ag-list::before{content:"";position:absolute;left:11px;top:10px;bottom:18px;width:2px;background:linear-gradient(var(--cardline),transparent)}
+.ag-item{position:relative;padding:0 0 2px}
+.ag-num{position:absolute;left:-28px;top:1px;width:24px;height:24px;border-radius:50%;background:var(--lime);color:var(--lime-ink);font-family:var(--f-mono);font-size:12px;font-weight:700;display:grid;place-items:center}
+.ag-time{font-family:var(--f-mono);font-size:12px;color:var(--lime);font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ag-dur{font-family:var(--f-mono);font-size:10.5px;color:var(--ink2);background:rgba(255,255,255,.07);border-radius:999px;padding:2px 9px;font-weight:500}
+.ag-name{font-size:16px;font-weight:700;margin:3px 0 2px;line-height:1.28}
+.ag-name a{color:inherit;text-decoration:none;border-bottom:1.5px solid var(--accent-soft)}
+.ag-desc{font-size:13.5px;color:var(--ink2);font-weight:500;margin-top:2px}
+.ag-go{display:flex;align-items:center;gap:9px;margin:9px 0 13px;font-size:12.5px;color:var(--ink2);font-weight:600}
+.ag-go .ln{flex:none;width:20px;text-align:center;font-size:15px}
+.ag-msg{font-size:15px;color:var(--ink2);font-weight:500;margin-bottom:8px}
+.ag-time .tag{margin-left:auto}
+.ag-bonus{margin-top:10px;border-top:1px dashed var(--cardline);padding-top:12px}
+.ag-bonus-h{font-family:var(--f-ui);font-weight:800;font-size:13px;color:var(--lime);margin-bottom:9px;letter-spacing:-.01em}
+.ag-b{display:block;text-decoration:none;color:inherit;background:var(--paper2);border:1px solid var(--cardline);border-radius:12px;padding:10px 12px;margin-bottom:7px;transition:transform .15s}
+.ag-b:active{transform:scale(.99)}
+.ag-b .n{font-weight:700;font-size:14px;line-height:1.25}
+.ag-b .d{font-size:12.5px;color:var(--ink2);font-weight:500;margin-top:2px}
+.ag-b .tag{margin-top:7px}
+/* miniatura (logo/ícone) + etiquetas menores + painel de detalhes */
+.ag-item{padding-right:56px}
+.ag-thumb{position:absolute;right:0;top:0;width:46px;height:46px;border-radius:11px;overflow:hidden;background:var(--paper2);border:1px solid var(--cardline);display:grid;place-items:center}
+.ag-thumb img{position:relative;z-index:2;width:100%;height:100%;object-fit:contain;padding:5px;background:#fff}
+.ag-thumb em{position:absolute;z-index:1;font-size:22px;font-style:normal}
+.ag-time .tag{margin-left:auto;font-size:9.5px;padding:2px 7px;letter-spacing:0}
+.tag.sug{background:rgba(203,241,73,.14);color:var(--lime);border-color:transparent}
+.tag.k{background:rgba(255,255,255,.06);color:var(--ink2);border-color:transparent}
+.ag-exp{margin-top:7px;background:none;border:1px solid var(--cardline);color:var(--ink2);font:600 11.5px var(--f-ui);padding:4px 11px;border-radius:999px;cursor:pointer}
+.ag-exp:active{transform:scale(.97)}
+.ag-more{display:none;margin-top:8px;background:var(--paper2);border:1px solid var(--cardline);border-radius:12px;padding:11px 13px}
+.ag-item.exp .ag-more{display:block}
+.ag-more .ab{font-size:13px;color:var(--ink);font-weight:500;line-height:1.45}
+.ag-more .row{display:flex;gap:8px;font-size:12.5px;color:var(--ink2);font-weight:600;margin-top:6px}
+.ag-b .tag{font-size:9.5px;padding:2px 7px}
+.ag-cap{font-size:11.5px;color:var(--ink2);font-weight:600;margin:-10px 0 14px;display:flex;align-items:center;gap:6px}
+.ag-cap b{width:11px;height:11px;border-radius:50%;background:#38bdf8;display:inline-block;border:1px solid #04222e}
+</style>
+</head>
+<body data-accent="pt">
+
+<div class="appbar" id="appbar">
+  <div class="brand">Lisboa <i>✕</i> Amsterdã</div>
+  <div class="sec" id="secLabel">Roteiro</div>
+  <div class="progress" id="progress"></div>
+</div>
+
+<div class="wrap">
+
+  <!-- ================= ROTEIRO ================= -->
+  <section class="view active" id="v-roteiro">
+    <header class="hero reveal">
+      <div class="stamp">JUL<br>2026<span>PAI+FILHA</span></div>
+      <div class="kick">Roteiro de viagem</div>
+      <h1>Lisboa<span class="x" aria-hidden="true">✕</span>Amsterdã</h1>
+      <p class="sub">Uma viagem <b>pai &amp; filha</b> · 12–21 de julho de 2026.</p>
+      <div class="chips"><span>🎌 Anime</span><span>💿 K-pop</span><span>🎨 Arte</span><span>🍔 Besteira boa</span></div>
+      <div class="count" id="count"><span class="big" id="cd">–</span><span class="lbl" id="cdl">para a<br>decolagem</span></div>
+    </header>
+
+    <article class="day pt open reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">12</span><span class="m">Dom</span></div><div class="day-meta"><div class="wd">Lisboa · chegada</div><div class="tt">Chegada &amp; margem sul</div></div><div class="chev">▾</div></button>
+      <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="12"></div></div></div></div>
+    </article>
+
+    <article class="day pt reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">13</span><span class="m">Seg</span></div><div class="day-meta"><div class="wd">Lisboa</div><div class="tt">A lista dela no Chiado + K-pop</div></div><div class="chev">▾</div></button>
+      <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="13"></div></div></div></div>
+    </article>
+
+    <article class="day pt reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">14</span><span class="m">Ter</span></div><div class="day-meta"><div class="wd">Lisboa</div><div class="tt">Feira, Oceanário &amp; K-pop</div></div><div class="chev">▾</div></button>
+      <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="14"></div></div></div></div>
+    </article>
+
+    <article class="day pt reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">15</span><span class="m">Qua</span></div><div class="day-meta"><div class="wd">Lisboa → Amsterdã</div><div class="tt">Belém &amp; voo</div></div><div class="chev">▾</div></button>
+      <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="15"></div></div></div></div>
+    </article>
+
+    <article class="day flex reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">16</span><span class="m">Qui</span></div><div class="day-meta"><div class="wd">Haia · com amigos</div><div class="tt">Programa dos amigos</div></div><div class="chev">▾</div></button>
+      <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="16"></div></div></div></div>
+    </article>
+
+    <article class="day nl reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">17</span><span class="m">Sex</span></div><div class="day-meta"><div class="wd">Amsterdã</div><div class="tt">Centro, compras &amp; museus</div></div><div class="chev">▾</div></button>
+      <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="17"></div></div></div></div>
+    </article>
+
+    <article class="day nl reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">18</span><span class="m">Sáb</span></div><div class="day-meta"><div class="wd">Amsterdã</div><div class="tt">Compras dela &amp; arte</div></div><div class="chev">▾</div></button>
+      <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="18"></div></div></div></div>
+    </article>
+
+    <article class="day flex reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">19</span><span class="m">Dom</span></div><div class="day-meta"><div class="wd">Haia · com amigos</div><div class="tt">Programa dos amigos</div></div><div class="chev">▾</div></button>
+      <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="19"></div></div></div></div>
+    </article>
+
+    <article class="day nl reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">20</span><span class="m">Seg</span></div><div class="day-meta"><div class="wd">Amsterdã → Lisboa</div><div class="tt">Manhã livre &amp; voo</div></div><div class="chev">▾</div></button>
+      <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="20"></div></div></div></div>
+    </article>
+
+    <article class="day pt reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">21</span><span class="m">Ter</span></div><div class="day-meta"><div class="wd">Lisboa → Brasil</div><div class="tt">Volta pra casa</div></div><div class="chev">▾</div></button>
+      <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="21"></div></div></div></div>
+    </article>
+  </section>
+
+  <!-- ================= LISBOA ================= -->
+  <section class="view" id="v-lisboa">
+    <div class="view-head reveal"><div class="ey">Guia · 🇵🇹</div><h2>Lisboa</h2><p>Base: Amora/Seixal · de carro</p></div>
+
+    <div class="cat reveal"><span class="ico">🛍️</span>A lista dela</div>
+    <div class="legend reveal"><span><b style="background:#e5533f"></b>Necessário</span><span><b style="background:#f0a33a"></b>Quero muito</span><span><b style="background:#5aa0ff"></b>Quero ir</span><span><b style="background:#9a9a92"></b>Opcional</span></div>
+    <div class="note nl reveal"><span class="ni">🏷️</span><span><b>Barra colorida à esquerda</b> = item da sua lista (a cor indica a prioridade). Cartões <b>sem barra</b> = sugestões minhas.</span></div>
+    <div class="note tip reveal"><span class="ni">🚶</span><span>Quase tudo se resolve <b>a pé no Chiado/Baixa</b>. O resto é rápido de carro. Agrupei por zona.</span></div>
+
+    <div class="rt-h reveal"><span class="n">1</span>Chiado &amp; Baixa (tudo a pé)</div>
+    <a class="place pt reveal" href="comgooglemaps://?q=Sephora+Armazens+do+Chiado+Lisboa" target="_blank" rel="noopener"><div class="pn">Sephora</div><div class="pl">Armazéns do Chiado · Rua do Carmo 2</div><div class="pd">Cosméticos e maquiagem.</div><div class="tags"><span class="tag nec">Necessário</span></div></a>
+    <a class="place pt reveal" href="comgooglemaps://?q=Muji+Rua+do+Carmo+Lisboa" target="_blank" rel="noopener"><div class="pn">Muji</div><div class="pl">Rua do Carmo 65-73</div><div class="pd">Papelaria minimalista japonesa.</div><div class="tags"><span class="tag nec">Necessário</span></div></a>
+    <a class="place pt reveal" href="comgooglemaps://?q=Normal+Rua+do+Ouro+243+Lisboa" target="_blank" rel="noopener"><div class="pn">Normal</div><div class="pl">Rua do Ouro 243 · junto ao Elevador de Santa Justa</div><div class="pd">"Tudo" — beleza, snacks, achadinhos. Ocupa um prédio inteiro.</div><div class="tags"><span class="tag nec">Necessário</span></div></a>
+    <a class="place pt reveal" href="comgooglemaps://?q=Tubitek+Rua+do+Crucifixo+79+Lisboa" target="_blank" rel="noopener"><div class="pn">Tubitek</div><div class="pl">Rua do Crucifixo 79 · saída do metro Baixa-Chiado</div><div class="pd">Loja de discos com boa seção de K-pop.</div><div class="tags"><span class="tag kpop">K-pop</span><span class="tag nec">Necessário</span></div></a>
+    <a class="place pt reveal" href="comgooglemaps://?q=Primor+Rua+Garrett+Lisboa" target="_blank" rel="noopener"><div class="pn">Primor</div><div class="pl">Rua Garrett 13-23</div><div class="pd">Cosméticos e perfumaria "low cost" (marcas boas mais baratas).</div><div class="tags"><span class="tag quero">Quero conhecer</span></div></a>
+    <a class="place pt reveal" href="comgooglemaps://?q=Pull+and+Bear+Rua+Nova+do+Almada+Lisboa" target="_blank" rel="noopener"><div class="pn">Pull &amp; Bear</div><div class="pl">Rua Nova do Almada 89-101</div><div class="pd">Roupas.</div><div class="tags"><span class="tag quero">Quero ir</span></div></a>
+    <a class="place pt reveal" href="comgooglemaps://?q=Gelateria+La+Verde+Travessa+das+Pedras+Negras+Lisboa" target="_blank" rel="noopener"><div class="pn">Gelateria La Verde <span style="font-weight:500;color:var(--ink2)">("Le Verde")</span></div><div class="pl">Travessa das Pedras Negras 18 · Baixa</div><div class="pd">Gelato artesanal — o famoso "chocolate do Dubai" e cone XXL.</div><div class="tags"><span class="tag quero">Quero ir</span></div></a>
+
+    <div class="rt-h reveal"><span class="n">2</span>Avenida de Roma (Areeiro · a pé)</div>
+    <a class="place pt reveal" href="comgooglemaps://?q=The+B+Club+Avenida+de+Roma+23B+Lisboa" target="_blank" rel="noopener"><div class="pn">The B Club</div><div class="pl">Av. de Roma 23B</div><div class="pd">Bolsas e atelier de pulseiras/colares DIY (monta com pingentes).</div><div class="tags"><span class="tag quero">Quero conhecer</span></div></a>
+    <a class="place pt reveal fromlist" href="comgooglemaps://?q=Cana%C3%A3+bijuterias+Avenida+de+Roma+64C+Lisboa" target="_blank" rel="noopener"><div class="pn">Canaã — bijuterias &amp; acessórios</div><div class="pl">Av. de Roma 64C · mesma rua da The B Club</div><div class="pd">Bijuterias e acessórios.</div><div class="tags"><span class="tag pin">📍 Da lista dela</span></div></a>
+
+    <div class="rt-h reveal"><span class="n">3</span>Campo de Ourique (a pé)</div>
+    <a class="place pt reveal" href="comgooglemaps://?q=Myka+Greek+Rua+Coelho+da+Rocha+94+Lisboa" target="_blank" rel="noopener"><div class="pn">Myka Greek</div><div class="pl">Rua Coelho da Rocha 94</div><div class="pd">Iogurte grego artesanal com +30 toppings (incl. "chocolate do Dubai").</div><div class="tags"><span class="tag muito">Quero muito</span></div></a>
+    <a class="place pt reveal" href="comgooglemaps://?q=Floco+Loco+Rua+Coelho+da+Rocha+72+Lisboa" target="_blank" rel="noopener"><div class="pn">Floco Loco &amp; Co</div><div class="pl">Rua Coelho da Rocha 72A · mesma rua do Myka</div><div class="pd">Raspadinha havaiana (shave ice) fofinha, xaropes de fruta caseiros.</div><div class="tags"><span class="tag nec">Necessário</span></div></a>
+
+    <div class="rt-h reveal"><span class="n">4</span>Alfama / Graça</div>
+    <a class="place pt reveal" href="comgooglemaps://?q=Feira+da+Ladra+Campo+de+Santa+Clara+Lisboa" target="_blank" rel="noopener"><div class="pn">Feira da Ladra</div><div class="pl">Campo de Santa Clara · Alfama/Graça</div><div class="pd">A maior feira de velharias de Lisboa (desde 1272).</div><div class="tags"><span class="tag muito">Quero muito</span><span class="tag book">só ter &amp; sáb, 9h–18h</span></div></a>
+    <div class="note warn reveal"><span class="ni">📅</span><span><b>Atenção:</b> a Feira da Ladra só abre <b>terça e sábado</b>. Na sua estadia em Lisboa, isso cai na <b>terça 14/07</b> — encaixar nesse dia se quiser ir.</span></div>
+
+    <div class="rt-h reveal"><span class="n">5</span>Um pouco fora (de carro)</div>
+    <a class="place pt reveal" href="comgooglemaps://?q=Rose+Garden+brunch+Famoes+Odivelas" target="_blank" rel="noopener"><div class="pn">Rose Garden — café &amp; brunch</div><div class="pl">Famões, Odivelas · norte, de carro</div><div class="pd">Brunch o dia todo num cenário todo cor-de-rosa (carruagem na porta).</div><div class="tags"><span class="tag quero">Quero ir</span></div></a>
+    <a class="place pt reveal" href="comgooglemaps://?q=Victoria's+Secret+Aeroporto+de+Lisboa" target="_blank" rel="noopener"><div class="pn">Victoria's Secret</div><div class="pl">Aeroporto de Lisboa · Terminal 1</div><div class="pd">Em Lisboa só tem no aeroporto — <b>aproveitar no embarque</b> (15/07 ou 21/07).</div><div class="tags"><span class="tag nec">Necessário</span></div></a>
+
+    <div class="cat reveal" style="border-top:1px solid var(--cardline);padding-top:20px;color:var(--lime)"><span class="ico">💡</span>Minhas sugestões <span style="font-size:12px;font-weight:600;color:var(--ink2)">(fora da sua lista)</span></div>
+    <div class="cat reveal"><span class="ico">🎌</span>Anime &amp; mangá</div>
+    <a class="place reveal" href="comgooglemaps://?q=Conbini+Lisboa+Conde+Valbom" target="_blank" rel="noopener"><div class="pn">Conbini</div><div class="pl">Av. Conde Valbom 97 · Avenidas Novas</div><div class="pd">A loja de cultura japonesa mais completa da cidade: figuras, mangá, plushies. Ao lado do CAM.</div><div class="tags"><span class="tag pin">📍 Avenidas Novas</span><span class="tag eur">chaveiro ~5€ · figuras 30€+</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Tsubaki+anime+Lisboa+Areeiro" target="_blank" rel="noopener"><div class="pn">Tsubaki</div><div class="pl">Trav. Henrique Cardoso 67-A · Areeiro</div><div class="pd">Loja veterana (2010) de merch de anime e games — One Piece, Naruto, Dragon Ball.</div><div class="tags"><span class="tag pin">📍 Areeiro</span><span class="tag eur">5–100€</span></div></a>
+
+    <div class="cat reveal"><span class="ico">💿</span>K-pop &amp; Coreia</div>
+    <a class="place reveal" href="comgooglemaps://?q=Byeol+Music+Almada" target="_blank" rel="noopener"><div class="pn">Byeol Music</div><div class="pl">Piedense Forum, Cova da Piedade · Almada</div><div class="pd">Loja dedicada a K-pop pertinho de casa: álbuns, lightsticks, photocards direto da Coreia.</div><div class="tags"><span class="tag kpop">K-pop</span><span class="tag eur">álbuns ~20–29€</span><span class="tag book">ligar: 923 564 661</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Inki+Kpop+Moscavide" target="_blank" rel="noopener"><div class="pn">Inki — loja + lounge K-pop</div><div class="pl">Moscavide · perto do Oceanário</div><div class="pd">Discos, lightsticks, photocards e peluches. Combina com o dia do Oceanário.</div><div class="tags"><span class="tag kpop">K-pop</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=mercearia+coreana+Martim+Moniz+Lisboa" target="_blank" rel="noopener"><div class="pn">Mercearias coreanas — Martim Moniz</div><div class="pl">Mouraria · "chinatown" de Lisboa</div><div class="pd">Snacks, doces e bebidas coreanas baratinhas. FNAC (Colombo/Chiado) também tem seção física de K-pop.</div><div class="tags"><span class="tag eur">$</span></div></a>
+
+    <div class="cat reveal"><span class="ico">🎨</span>Arte &amp; imersivo</div>
+    <a class="place reveal" href="comgooglemaps://?q=CAM+Centro+Arte+Moderna+Gulbenkian" target="_blank" rel="noopener"><div class="pn">CAM — Arte Moderna Gulbenkian</div><div class="pl">Prédio de Kengo Kuma · jardim lindo</div><div class="pd">Reabriu em 2024, premiado. Ao lado da Conbini.</div><div class="tags"><span class="tag free">Grátis &lt;18</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Immersivus+Gallery+Amoreiras+Lisboa" target="_blank" rel="noopener"><div class="pn">Immersivus Gallery</div><div class="pl">Reservatório da Mãe d'Água · Amoreiras</div><div class="pd">Experiências imersivas 360° (Monet, Klimt) dentro de um reservatório histórico.</div><div class="tags"><span class="tag eur">~15–20€</span><span class="tag book">Fever</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=LX+Factory+Lisboa" target="_blank" rel="noopener"><div class="pn">LX Factory</div><div class="pl">Alcântara · junto à Ponte 25 de Abril</div><div class="pd">Street art (a abelha do Bordalo II), lojas criativas, livraria Ler Devagar.</div><div class="tags"><span class="tag free">Entrada grátis</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=MAAT+Belem+Lisboa" target="_blank" rel="noopener"><div class="pn">MAAT</div><div class="pl">Belém · à beira-rio</div><div class="pd">Edifício ondulado icônico — caminhar por cima do telhado é grátis.</div><div class="tags"><span class="tag free">Telhado grátis</span></div></a>
+
+    <div class="cat reveal"><span class="ico">🍔</span>Besteira boa</div>
+    <a class="place reveal" href="comgooglemaps://?q=Time+Out+Market+Lisboa" target="_blank" rel="noopener"><div class="pn">Time Out Market</div><div class="pl">Cais do Sodré</div><div class="pd">Agrada todo mundo: ramen, frango coreano, hambúrguer, pastel de nata da Manteigaria.</div><div class="tags"><span class="tag eur">pratos ~9–16€</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Pasteis+de+Belem" target="_blank" rel="noopener"><div class="pn">Pastéis de Belém</div><div class="pl">Belém</div><div class="pd">Os originais desde 1837, receita secreta. Aberto 8h–23h.</div><div class="tags"><span class="tag eur">~1,40€ cada</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=bubble+tea+Chiado+Lisboa" target="_blank" rel="noopener"><div class="pn">Bubble tea &amp; ramen</div><div class="pl">Chiado / Martim Moniz</div><div class="pd">Casas de bubble tea e ramen. Korean fried chicken ~12–18€.</div><div class="tags"><span class="tag eur">$–$$</span></div></a>
+
+    <div class="cat reveal"><span class="ico">🐟</span>Passeio especial</div>
+    <a class="place reveal" href="comgooglemaps://?q=Oceanario+de+Lisboa" target="_blank" rel="noopener"><div class="pn">Oceanário de Lisboa</div><div class="pl">Parque das Nações</div><div class="pd">Dos melhores aquários da Europa, tanque central gigante.</div><div class="tags"><span class="tag eur">criança ~15–18€ · adulto ~25–31€</span><span class="tag book">reservar online</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Palacio+da+Pena+Sintra" target="_blank" rel="noopener"><div class="pn">Sintra — Palácio da Pena</div><div class="pl">Sintra</div><div class="pd">Palácio colorido na serra, parece de conto. Chegar antes das 9h30.</div><div class="tags"><span class="tag eur">~14–20€</span></div></a>
+
+    <div class="note tip reveal"><span class="ni">🚗</span><span><b>Margem sul → Lisboa:</b> portagem só na ida (volta grátis) — 25 de Abril 2,25€ / Vasco da Gama 3,40€. No centro, melhor deixar o carro em Cacilhas e ir de <b>barco</b>. Estacionamento fácil no Parque das Nações, LX Factory e Amoreiras.</span></div>
+  </section>
+
+  <!-- ================= AMSTERDÃ ================= -->
+  <section class="view" id="v-amsterda">
+    <div class="view-head reveal"><div class="ey">Guia · 🇳🇱</div><h2>Amsterdã</h2><p>Bate-volta de Haia · trem ~50 min</p></div>
+
+    <div class="cat reveal"><span class="ico">🛍️</span>A lista dela</div>
+    <div class="legend reveal"><span><b style="background:#e5533f"></b>Necessário</span><span><b style="background:#f0a33a"></b>Quero muito</span><span><b style="background:#5aa0ff"></b>Quero ir</span><span><b style="background:#9a9a92"></b>Opcional</span></div>
+    <div class="note nl reveal"><span class="ni">🏷️</span><span><b>Barra colorida à esquerda</b> = item da sua lista (a cor indica a prioridade). Cartões <b>sem barra</b> = sugestões minhas.</span></div>
+    <div class="note nl reveal"><span class="ni">🚶</span><span>Boa notícia: quase tudo fica <b>a pé no centro</b> (Kalverstraat/Nieuwendijk). Separei por proximidade pra render o dia.</span></div>
+
+    <div class="rt-h reveal"><span class="n">1</span>Centrum · Kalverstraat &amp; Nieuwendijk</div>
+    <a class="place reveal" href="comgooglemaps://?q=Hollister+Kalverstraat+179+Amsterdam" target="_blank" rel="noopener"><div class="pn">Hollister</div><div class="pl">Kalverstraat 179</div><div class="pd">Roupas.</div><div class="tags"><span class="tag nec">Necessário</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Flying+Tiger+Kalverstraat+36+Amsterdam" target="_blank" rel="noopener"><div class="pn">Flying Tiger Copenhagen</div><div class="pl">Kalverstraat 36-38 · loja-bandeira</div><div class="pd">Bugigangas divertidas e baratas.</div><div class="tags"><span class="tag nec">Necessário</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Normal+Nieuwendijk+118+Amsterdam" target="_blank" rel="noopener"><div class="pn">Normal</div><div class="pl">Nieuwendijk 118 · ao lado da Central</div><div class="pd">"Tudo" — beleza, snacks, achadinhos virais.</div><div class="tags"><span class="tag nec">Necessário</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Intertoys+Kalverstraat+193+Amsterdam" target="_blank" rel="noopener"><div class="pn">Intertoys</div><div class="pl">Kalverstraat 193-195</div><div class="pd">Loja de brinquedos.</div><div class="tags"><span class="tag quero">Quero ir</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Vlieger+papier+Amstel+34+Amsterdam" target="_blank" rel="noopener"><div class="pn">Vlieger Papier</div><div class="pl">Amstel 34 · perto da Munt</div><div class="pd">Papelaria histórica (desde 1869), a mais antiga da Europa.</div><div class="tags"><span class="tag op">Opcional</span></div></a>
+
+    <div class="rt-h reveal"><span class="n">2</span>Chinatown · Zeedijk (perto da Central)</div>
+    <a class="place reveal" href="comgooglemaps://?q=Keapop+Zeedijk+89+Amsterdam" target="_blank" rel="noopener"><div class="pn">KeaPOP</div><div class="pl">Zeedijk 89 · pop-up</div><div class="pd">Álbuns de K-pop, photocards, lightsticks. <b>Fica ao lado da Henk Manga</b> (Zeedijk 101) — junte as duas.</div><div class="tags"><span class="tag kpop">K-pop</span><span class="tag quero">Quero ir</span></div></a>
+
+    <div class="rt-h reveal"><span class="n">3</span>Leidsestraat → 9 Straatjes</div>
+    <a class="place reveal" href="comgooglemaps://?q=Brandy+Melville+Leidsestraat+Amsterdam" target="_blank" rel="noopener"><div class="pn">Brandy Melville</div><div class="pl">Leidsestraat 70-72</div><div class="pd">Roupas. <b>A Hey!Hallyu (K-pop)</b> fica pertinho, na Prinsengracht 454B.</div><div class="tags"><span class="tag nec">Necessário</span></div></a>
+
+    <div class="rt-h reveal"><span class="n">4</span>Perto dos museus (Museumplein)</div>
+    <a class="place reveal" href="comgooglemaps://?q=De+Winkel+van+Nijntje+Nieuwe+Spiegelstraat+61+Amsterdam" target="_blank" rel="noopener"><div class="pn">Nijntje / Miffy — De Winkel van Nijntje</div><div class="pl">Nieuwe Spiegelstraat 61 · 5 min do Rijksmuseum</div><div class="pd">A loja oficial da Miffy. Encaixa no dia dos museus.</div><div class="tags"><span class="tag op">Opcional</span></div></a>
+
+    <div class="note warn reveal"><span class="ni">💡</span><span><b>Kknekki</b> (pulseiras) não tem loja física — só online (kknekki.nl) ou em boutiques infantis. Fica como opcional.</span></div>
+
+    <div class="cat reveal" style="border-top:1px solid var(--cardline);padding-top:20px;color:var(--lime)"><span class="ico">💡</span>Minhas sugestões <span style="font-size:12px;font-weight:600;color:var(--ink2)">(fora da sua lista)</span></div>
+    <div class="cat reveal"><span class="ico">🎌</span>Anime &amp; figures</div>
+    <a class="place reveal" href="comgooglemaps://?q=Henk+Comics+Manga+Amsterdam" target="_blank" rel="noopener"><div class="pn">Henk Comics &amp; Manga</div><div class="pl">Zeedijk 101 · Chinatown</div><div class="pd">A maior loja de mangá, HQs, figures e pôsteres da Holanda (desde 1995). Parada obrigatória.</div><div class="tags"><span class="tag pin">📍 Chinatown</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=A+Space+Oddity+Prinsengracht+Amsterdam" target="_blank" rel="noopener"><div class="pn">A Space Oddity</div><div class="pl">Prinsengracht 204 · 9 Straatjes</div><div class="pd">Colecionáveis: Gundam, muito Pokémon e designer toys japoneses no porão.</div><div class="tags"><span class="tag pin">📍 9 Straatjes</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Miniso+Kalverstraat+Amsterdam" target="_blank" rel="noopener"><div class="pn">Miniso</div><div class="pl">Kalverstraat 107 · a maior do país</div><div class="pd">Plushies, papelaria fofa e produtos Sanrio (Hello Kitty). Preços baixos, 3 andares.</div><div class="tags"><span class="tag eur">itens ~3–15€</span></div></a>
+
+    <div class="cat reveal"><span class="ico">💿</span>K-pop &amp; Coreia</div>
+    <a class="place reveal" href="comgooglemaps://?q=Hey+Hallyu+Amsterdam+Prinsengracht" target="_blank" rel="noopener"><div class="pn">Hey!Hallyu</div><div class="pl">Prinsengracht 454B · perto de Leidsestraat</div><div class="pd">A loja física de K-pop de Amsterdã: álbuns oficiais, photocards, lightsticks, pôsteres.</div><div class="tags"><span class="tag kpop">K-pop</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Amazing+Oriental+Nieuwmarkt+Amsterdam" target="_blank" rel="noopener"><div class="pn">Amazing Oriental</div><div class="pl">Nieuwmarkt 27 · ao lado do Henk</div><div class="pd">Supermercado asiático gigante: snacks coreanos, doces, ramyeon. Ótimo pra "comprar besteira".</div><div class="tags"><span class="tag eur">$</span></div></a>
+
+    <div class="cat reveal"><span class="ico">🎨</span>Arte &amp; visual</div>
+    <a class="place reveal" href="comgooglemaps://?q=Moco+Museum+Amsterdam" target="_blank" rel="noopener"><div class="pn">Moco Museum</div><div class="pl">Museumplein · o mais jovem &amp; instagramável</div><div class="pd">Banksy, Basquiat, Keith Haring, salas imersivas, Pink Room.</div><div class="tags"><span class="tag eur">~18–23€</span><span class="tag book">reservar horário</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Van+Gogh+Museum" target="_blank" rel="noopener"><div class="pn">Van Gogh Museum</div><div class="pl">Museumplein · clássico imperdível</div><div class="pd">Entrada só com horário marcado — reservar com semanas de antecedência.</div><div class="tags"><span class="tag free">Grátis &lt;18</span><span class="tag book">reservar online</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Fabrique+des+Lumieres+Amsterdam" target="_blank" rel="noopener"><div class="pn">Fabrique des Lumières</div><div class="pl">Westergas · arte imersiva projetada</div><div class="pd">Van Gogh, Vermeer, Monet em projeções gigantes. Muito envolvente.</div><div class="tags"><span class="tag eur">adulto ~18€ · criança ~14€</span><span class="tag book">reservar horário</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=STRAAT+Museum+Amsterdam+NDSM" target="_blank" rel="noopener"><div class="pn">STRAAT Museum</div><div class="pl">NDSM-Noord · balsa grátis da Central</div><div class="pd">8.000 m² de street art, +180 obras. Único e super visual.</div><div class="tags"><span class="tag book">reservar recomendado</span></div></a>
+
+    <div class="cat reveal"><span class="ico">🧇</span>Besteira boa</div>
+    <a class="place reveal" href="comgooglemaps://?q=Van+Wonderen+Stroopwafels+Kalverstraat" target="_blank" rel="noopener"><div class="pn">Van Wonderen Stroopwafels</div><div class="pl">Kalverstraat 190</div><div class="pd">Stroopwafel gigante com chocolate + Oreo/Biscoff. O famoso do TikTok, fotogênico.</div><div class="tags"><span class="tag eur">~11–14€</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Vleminckx+Sausmeesters+Amsterdam" target="_blank" rel="noopener"><div class="pn">Vleminckx — fritas belgas</div><div class="pl">perto do Spui</div><div class="pd">As batatas fritas mais famosas da cidade, dezenas de molhos.</div><div class="tags"><span class="tag eur">~4–6€</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Chatime+Kalverstraat+Amsterdam" target="_blank" rel="noopener"><div class="pn">Chatime + FEBO</div><div class="pl">Centro · Kalverstraat</div><div class="pd">Bubble tea e o clássico FEBO (croquetes na "parede de máquinas").</div><div class="tags"><span class="tag eur">bubble ~5–6€ · FEBO ~2–3€</span></div></a>
+
+    <div class="note nl reveal"><span class="ni">🚆</span><span><b>Trem Haia → Amsterdã:</b> ~50 min, a cada 10–15 min. Pague por aproximação (contactless/OVpay) — faça <b>check-in e check-out</b> na coluna amarela. Kalverstraat, 9 Straatjes e Chinatown são a pé da Central.</span></div>
+  </section>
+
+  <!-- ================= HAIA ================= -->
+  <section class="view" id="v-haia">
+    <div class="view-head reveal"><div class="ey">Plano B · 🇳🇱</div><h2>Haia</h2><p>Pra quando terminar cedo com os amigos</p></div>
+
+    <div class="cat reveal"><span class="ico">🎌</span>Lojas &amp; colecionáveis</div>
+    <a class="place reveal" href="comgooglemaps://?q=Yatta+Store+Den+Haag+Chinatown" target="_blank" rel="noopener"><div class="pn">Yatta Store</div><div class="pl">Gedempte Burgwal 10 · Chinatown</div><div class="pd">Loja asiática com vibe coreana: merch de K-pop, itens fofos e cabine de fotos. Cara dela.</div><div class="tags"><span class="tag kpop">K-pop</span><span class="tag book">confirmar horário</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Collectura+Den+Haag" target="_blank" rel="noopener"><div class="pn">Collectura</div><div class="pl">Piet Heinstraat 113 · Zeeheldenkwartier</div><div class="pd">Referência em mangá, anime e Funko Pop em Haia.</div><div class="tags"><span class="tag pin">📍 Zeeheldenkwartier</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Kokoro+Market+Den+Haag" target="_blank" rel="noopener"><div class="pn">Kokoro Market + Chinatown</div><div class="pl">Wagenstraat · dois portões chineses</div><div class="pd">Mercadinho japonês/coreano (doces, snacks, ramyeon) e lojinhas asiáticas pra garimpar.</div><div class="tags"><span class="tag eur">$</span></div></a>
+
+    <div class="cat reveal"><span class="ico">🎨</span>Visual &amp; instagramável</div>
+    <a class="place reveal" href="comgooglemaps://?q=Escher+in+Het+Paleis+Den+Haag" target="_blank" rel="noopener"><div class="pn">Escher in Het Paleis</div><div class="pl">Paleis Lange Voorhout · Centro</div><div class="pd">Ilusões de ótica de Escher, a "sala de Escher" e a Metamorfose III de 7 m. O mais jovem.</div><div class="tags"><span class="tag book">Tiqets · combi c/ Mauritshuis</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=Mauritshuis+Den+Haag" target="_blank" rel="noopener"><div class="pn">Mauritshuis</div><div class="pl">Junto ao Binnenhof · Centro</div><div class="pd">A "Moça com Brinco de Pérola" (Vermeer) e Rembrandt. Compacto, dá pra ver rápido.</div><div class="tags"><span class="tag pin">📍 Centro</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=The+Hague+street+art+Zeeheldenkwartier" target="_blank" rel="noopener"><div class="pn">Rota de street art</div><div class="pl">Zeeheldenkwartier</div><div class="pd">Haia é hotspot de murais — roteiro a pé grátis e bem visual.</div><div class="tags"><span class="tag free">Grátis</span></div></a>
+
+    <div class="cat reveal"><span class="ico">🍟</span>Besteira boa</div>
+    <a class="place reveal" href="comgooglemaps://?q=Frites+Atelier+Den+Haag" target="_blank" rel="noopener"><div class="pn">Frites Atelier + Sisi Bubble Tea</div><div class="pl">Venestraat / Wagenstraat · Centro</div><div class="pd">Batata frita gourmet do Sergio Herman e bubble tea no centro.</div><div class="tags"><span class="tag eur">fritas ~5–9€ · bubble ~5–7€</span></div></a>
+    <a class="place reveal" href="comgooglemaps://?q=The+Kogi+House+Den+Haag" target="_blank" rel="noopener"><div class="pn">Coreano: Kogi House / Bibimbap</div><div class="pl">Centro</div><div class="pd">Churrasco coreano à vontade (Kogi House) ou tigelas quentes de bibimbap.</div><div class="tags"><span class="tag eur">$$</span></div></a>
+
+    <div class="cat reveal"><span class="ico">🎡</span>Só passar pra ver/comer</div>
+    <a class="place reveal" href="comgooglemaps://?q=De+Pier+Scheveningen" target="_blank" rel="noopener"><div class="pn">De Pier — Scheveningen</div><div class="pl">na praia</div><div class="pd">Deque sobre o mar: kibbeling na Kibbelking, gelato, roda-gigante e tirolesa. Sem "fazer praia".</div><div class="tags"><span class="tag pin">rápido</span></div></a>
+
+    <div class="note nl reveal"><span class="ni">🚋</span><span><b>Tram em Haia:</b> pro centro desça em Spui, Centrum ou Kalvermarkt-Stadhuis. Pra Scheveningen, trams 1/9/11/12/17 (~15 min). <b>HTM Dagkaart</b>: 6,50€ adulto / 2,50€ criança.</span></div>
+  </section>
+
+  <!-- ================= INFO ================= -->
+  <section class="view" id="v-info">
+    <div class="view-head reveal"><div class="ey">Essencial</div><h2>Info</h2><p>Voos, bases, transporte &amp; reservas</p></div>
+
+    <div class="cat reveal"><span class="ico">🧳</span>Checklist de embarque</div>
+    <div class="ckwrap reveal">
+      <div class="ck-top"><b>Brasil → Europa · toque pra marcar</b><span class="cnt" id="cklbl">0 / 0</span></div>
+      <div class="ck-bar"><i id="ckbar"></i></div>
+    </div>
+    <div class="note nl reveal"><span class="ni">✅</span><span><b>ETIAS não é necessário</b> em 2026 (adiado para 2027). Pode haver o novo controle biométrico <b>(EES)</b> na chegada à Europa — é só seguir as instruções no aeroporto.</span></div>
+
+    <div class="rt-h reveal"><span class="n">1</span>Documentos</div>
+    <ul class="check todo reveal">
+      <li data-ck="pass-pai">Passaporte do <b>pai</b> — válido além de 21/07 <small>ideal: 3+ meses de validade após a volta</small></li>
+      <li data-ck="pass-filha">Passaporte da <b>filha</b> — válido</li>
+      <li data-ck="autoriz" class="done">Autorização de viagem da menor <small>já impressa no passaporte ✓</small></li>
+      <li data-ck="seguro">Seguro viagem (mín. <b>€30 mil</b>) — <b>obrigatório</b> <small>apólice impressa ou salva no celular</small></li>
+      <li data-ck="hosped">Comprovantes de hospedagem <small>Amora + Haia (Westkapellelaan 96)</small></li>
+      <li data-ck="bilhetes">Passagens ida e volta / cartões de embarque</li>
+      <li data-ck="financ">Comprovante financeiro (cartão/extrato) <small>caso a imigração peça</small></li>
+    </ul>
+
+    <div class="rt-h reveal"><span class="n">2</span>Dinheiro &amp; cartões</div>
+    <ul class="check todo reveal">
+      <li data-ck="euros">Euros em espécie (trocar antes)</li>
+      <li data-ck="banco">Avisar o banco da viagem / liberar cartão internacional</li>
+      <li data-ck="cartao2">Cartão de crédito reserva (guardar separado)</li>
+    </ul>
+
+    <div class="rt-h reveal"><span class="n">3</span>Bagagem de mão (na cabine)</div>
+    <ul class="check todo reveal">
+      <li data-ck="docs-mao">Documentos e passagens sempre na mão</li>
+      <li data-ck="remedios">Remédios pessoais + receita</li>
+      <li data-ck="liquidos">Líquidos ≤ 100ml em saco transparente</li>
+      <li data-ck="powerbank">Power bank <small>não pode ir na mala despachada</small></li>
+      <li data-ck="carregador">Carregadores + fones</li>
+      <li data-ck="agasalho">Muda de roupa extra + agasalho (voo/clima)</li>
+    </ul>
+
+    <div class="rt-h reveal"><span class="n">4</span>Eletrônicos</div>
+    <ul class="check todo reveal">
+      <li data-ck="adaptador">Adaptador de tomada Europa <small>tipo C/F — serve em Portugal e Holanda</small></li>
+      <li data-ck="esim">Chip/eSIM internacional ou plano de roaming</li>
+      <li data-ck="apps">Celular pronto: Maps offline + este roteiro na Tela de Início</li>
+    </ul>
+
+    <div class="rt-h reveal"><span class="n">5</span>Para ela (voo longo)</div>
+    <ul class="check todo reveal">
+      <li data-ck="tablet">Tablet/fone carregados + anime/músicas offline</li>
+      <li data-ck="lanche">Lanche e garrafa vazia (encher após o raio-x)</li>
+      <li data-ck="conforto">Conforto: casaco, meia, o que ela gosta</li>
+    </ul>
+
+    <div class="rt-h reveal"><span class="n">6</span>Antes de sair de casa</div>
+    <ul class="check todo reveal">
+      <li data-ck="checkin">Check-in online feito (24h antes)</li>
+      <li data-ck="peso">Conferir peso e franquia das malas</li>
+      <li data-ck="etiqueta">Etiqueta com nome e telefone nas malas</li>
+      <li data-ck="carregar">Celular e power bank carregados</li>
+      <li data-ck="casa">Fechar a casa (água/gás/luz), lixo, chaves</li>
+    </ul>
+
+    <div class="rt-h reveal"><span class="n">7</span>No aeroporto (Brasil)</div>
+    <ul class="check todo reveal">
+      <li data-ck="antec">Chegar <b>3h antes</b> (voo internacional)</li>
+      <li data-ck="despacho">Despachar malas / pegar cartões de embarque</li>
+      <li data-ck="pf">Polícia Federal (emigração) — autorização da menor à mão</li>
+      <li data-ck="portao">Conferir o portão e o horário de embarque</li>
+    </ul>
+
+    <div class="cat reveal"><span class="ico">✈️</span>Voos</div>
+    <div class="flight reveal"><div><div class="route">LIS <span class="ar">→</span> AMS</div><div class="fd">Qua 15/07 · Lisboa → Amsterdã</div></div><div class="ft">15h30<span>chega 19h30</span></div></div>
+    <div class="flight reveal"><div><div class="route">AMS <span class="ar">→</span> LIS</div><div class="fd">Seg 20/07 · Amsterdã → Lisboa</div></div><div class="ft">16h40<span>chega 18h45</span></div></div>
+    <div class="flight reveal"><div><div class="route">LIS <span class="ar">→</span> BR</div><div class="fd">Ter 21/07 · volta pra casa</div></div><div class="ft">10h00<span>—</span></div></div>
+
+    <div class="cat reveal"><span class="ico">🏠</span>Bases</div>
+    <div class="kv reveal">
+      <div class="row"><div class="k">🇵🇹 Portugal</div><div class="v"><b>Amora / Seixal</b><br>Rua Dr. Emídio Guilherme Garcia Mendes 16<br>Transporte: carro do irmão</div></div>
+      <div class="row"><div class="k">🇳🇱 Holanda</div><div class="v"><b>Haia</b>, perto da praia<br>Westkapellelaan 96, Den Haag<br>Transporte: trem &amp; tram<br><a class="mapchip" href="comgooglemaps://?q=Westkapellelaan+96+Den+Haag" target="_blank" rel="noopener">📍 Ver no mapa</a></div></div>
+    </div>
+
+    <div class="cat reveal"><span class="ico">🚉</span>Transporte</div>
+    <div class="kv reveal">
+      <div class="row"><div class="k">Pontes</div><div class="v">Portagem só na ida p/ Lisboa: <b>25 de Abril 2,25€</b> · <b>Vasco da Gama 3,40€</b></div></div>
+      <div class="row"><div class="k">Barco</div><div class="v">Cacilhas → Cais do Sodré (10 min) — melhor pra ir ao centro sem carro</div></div>
+      <div class="row"><div class="k">Trem NL</div><div class="v">Den Haag → Amsterdã ~50 min · → Schiphol ~35 min · pague com <b>contactless/OVpay</b></div></div>
+      <div class="row"><div class="k">Check-in</div><div class="v">No trem/tram, encoste o cartão na <b>entrada E na saída</b> (coluna amarela)</div></div>
+      <div class="row"><div class="k">Tram Haia</div><div class="v">HTM Dagkaart: 6,50€ adulto / 2,50€ criança</div></div>
+    </div>
+
+    <div class="cat reveal"><span class="ico">✅</span>Reservar com antecedência</div>
+    <ul class="check reveal">
+      <li>Moco Museum — reservar slot de horário</li>
+      <li>Oceanário de Lisboa — comprar online (alta temporada)</li>
+      <li>Fabrique des Lumières / STRAAT — reservar horário</li>
+      <li>Byeol Music (Almada) — ligar 923 564 661 pra confirmar reabertura</li>
+      <li class="done">Autorização de viagem da menor — já impressa no passaporte</li>
+    </ul>
+
+    <div class="cat reveal"><span class="ico">🧭</span>Combinado da viagem</div>
+    <div class="kv reveal">
+      <div class="row"><div class="k">Foco</div><div class="v">A viagem é dela — anime, K-pop, arte e comer besteira</div></div>
+      <div class="row"><div class="k">Praia</div><div class="v">Não é programa — no máximo passar pra ver/comer</div></div>
+      <div class="row"><div class="k">Haia</div><div class="v">2 dias com amigos (programa deles) + plano B pra sobras</div></div>
+      <div class="row"><div class="k">Amsterdã</div><div class="v">Compras (lista de ~10 lojas dela) + museus visuais</div></div>
+    </div>
+
+    <div class="foot reveal">Feito com carinho pra essa viagem 🧳<br><b>Toque nos cards</b> pra abrir no mapa · salve na Tela de Início do iPhone</div>
+  </section>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav"><div class="nav-in">
+  <span class="pill" id="pill"><i></i></span>
+  <button class="on" data-go="roteiro" data-accent="pt" data-label="Roteiro"><span class="ni">🗓️</span>Roteiro</button>
+  <button data-go="lisboa" data-accent="pt" data-label="Lisboa"><span class="ni">🇵🇹</span>Lisboa</button>
+  <button data-go="amsterda" data-accent="nl" data-label="Amsterdã"><span class="ni">🇳🇱</span>Amsterdã</button>
+  <button data-go="haia" data-accent="nl" data-label="Haia"><span class="ni">🌷</span>Haia</button>
+  <button data-go="info" data-accent="gold" data-label="Info"><span class="ni">ℹ️</span>Info</button>
+</div></nav>
+
+<script>
+function tog(btn){ const day=btn.closest('.day'); const open=day.classList.toggle('open'); btn.setAttribute('aria-expanded', open); if(open){ var dd=day.querySelector('.dnum .d'); if(dd) renderDay(dd.textContent.trim()); } }
+document.querySelectorAll('.day-top').forEach(b=>b.setAttribute('aria-expanded', b.closest('.day').classList.contains('open')));
+
+const views=document.querySelectorAll('.view');
+const btns=document.querySelectorAll('.nav button');
+const pill=document.getElementById('pill');
+const secLabel=document.getElementById('secLabel');
+function activate(b,i){
+  const id=b.dataset.go;
+  views.forEach(v=>v.classList.toggle('active', v.id==='v-'+id));
+  btns.forEach(x=>{const on=x===b; x.classList.toggle('on',on); x.setAttribute('aria-current', on?'page':'false');});
+  pill.style.transform='translateX(' + (i*100) + '%)';
+  document.body.setAttribute('data-accent', b.dataset.accent);
+  secLabel.textContent=b.dataset.label;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+btns.forEach((b,i)=>b.addEventListener('click',()=>activate(b,i)));
+
+// appbar shadow + barra de progresso
+const appbar=document.getElementById('appbar'), progress=document.getElementById('progress');
+function onScroll(){
+  const y=window.scrollY;
+  appbar.classList.toggle('scrolled', y>8);
+  const h=document.documentElement.scrollHeight-window.innerHeight;
+  progress.style.width=(h>0?(y/h*100):0)+'%';
+}
+window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+// countdown
+(function(){
+  const target=new Date('2026-07-12T07:00:00+01:00');
+  const days=Math.ceil((target-new Date())/86400000);
+  const el=document.getElementById('cd'), lbl=document.getElementById('cdl'), wrap=document.getElementById('count');
+  if(days>1){el.textContent=days; lbl.innerHTML='dias para a<br>decolagem';}
+  else if(days===1){el.textContent='1'; lbl.innerHTML='dia para a<br>decolagem';}
+  else if(days===0){el.textContent='✈️'; lbl.innerHTML='hoje é dia<br>de embarcar!';}
+  else{ wrap.style.display='none'; }
+})();
+
+// checklist de embarque (marca + salva no aparelho)
+(function(){
+  const KEY='ck-embarque-v1';
+  const items=[].slice.call(document.querySelectorAll('.check.todo li'));
+  if(!items.length) return;
+  let state={};
+  try{ state=JSON.parse(localStorage.getItem(KEY)||'{}'); }catch(e){}
+  const bar=document.getElementById('ckbar'), lbl=document.getElementById('cklbl');
+  function render(){
+    let done=0;
+    items.forEach(function(li){
+      const id=li.dataset.ck;
+      const on=(id in state)?state[id]:li.classList.contains('done');
+      li.classList.toggle('done',on);
+      li.setAttribute('role','checkbox'); li.setAttribute('aria-checked',on); li.tabIndex=0;
+      if(on) done++;
+    });
+    if(bar) bar.style.width=(done/items.length*100)+'%';
+    if(lbl) lbl.textContent=done+' / '+items.length;
+  }
+  function toggle(li){
+    const id=li.dataset.ck;
+    state[id]=!li.classList.contains('done');
+    try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){}
+    render();
+  }
+  items.forEach(function(li){
+    li.addEventListener('click',function(){toggle(li);});
+    li.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(li); } });
+  });
+  render();
+})();
+
+// ===== Agenda por horário + mapa real do dia =====
+var LOCKERS=[
+ {name:'Lockerpoint City Center (perto da Kalverstraat)',lat:52.3760,lon:4.8945,q:'Lockerpoint Nieuwezijds Kolk 18 Amsterdam'},
+ {name:'Lockerpoint Museumplein (ao lado do Van Gogh/Moco)',lat:52.3585,lon:4.8790,q:'Lockerpoint Van Baerlestraat 33B Amsterdam'}
+];
+var HOTEL={name:'Catalonia Vondel Amsterdam (1 noite sex→sáb)',lat:52.3607,lon:4.8760,q:'Catalonia Vondel Amsterdam'};
+var PLAN={
+'12':{stops:[
+ {t:'07:00',name:'Chegada + casa em Amora',d:'Aeroporto → casa, pegar o carro do irmão e descansar.',lat:38.626,lon:-9.121,q:'Amora Seixal',go:{i:'🚗',t:'~25 min pela Ponte 25 de Abril'}},
+ {t:'15:30',dur:'1h30',name:'LX Factory',d:'Street art, a abelha do Bordalo II, livraria Ler Devagar.',lat:38.7036,lon:-9.1787,q:'LX Factory Lisboa',go:{i:'🚗',t:'~10 min até o Cais do Sodré'}},
+ {t:'18:00',dur:'1h30',name:'Time Out Market',d:'Jantar: ramen, frango coreano, pastel de nata.',lat:38.7071,lon:-9.1455,q:'Time Out Market Lisboa',go:{i:'🚗',t:'~25 min de volta pra casa'}}
+],tip:'Dia de chegada — sem pressa. Dá pra encurtar se estiverem cansados.'},
+'13':{stops:[
+ {t:'09:30',name:'Barco de Cacilhas → Cais do Sodré',d:'Deixe o carro em Cacilhas; barco de 10 min com vista linda.',lat:38.6875,lon:-9.1495,q:'Cacilhas terminal fluvial',go:{i:'🚢',t:'10 min de barco'}},
+ {t:'10:00',dur:'40 min',pr:'nec',name:'Sephora',lat:38.7106,lon:-9.1394,q:'Sephora Armazéns do Chiado Lisboa',go:{i:'🚶',t:'2 min'}},
+ {t:'10:45',dur:'30 min',pr:'nec',name:'Muji',lat:38.7112,lon:-9.1391,q:'Muji Rua do Carmo Lisboa',go:{i:'🚶',t:'3 min'}},
+ {t:'11:20',dur:'30 min',pr:'quero',name:'Primor',lat:38.7108,lon:-9.1408,q:'Primor Rua Garrett Lisboa',go:{i:'🚶',t:'4 min'}},
+ {t:'11:55',dur:'30 min',pr:'quero',name:'Pull & Bear',lat:38.7100,lon:-9.1385,q:'Pull and Bear Rua Nova do Almada Lisboa',go:{i:'🚶',t:'6 min até o almoço'}},
+ {t:'12:30',dur:'1h',name:'Almoço — Time Out Market',lat:38.7071,lon:-9.1455,q:'Time Out Market Lisboa',go:{i:'🚶',t:'6 min'}},
+ {t:'13:45',dur:'40 min',pr:'nec',name:'Normal',lat:38.7118,lon:-9.1382,q:'Normal Rua do Ouro 243 Lisboa',go:{i:'🚶',t:'3 min'}},
+ {t:'14:30',dur:'30 min',pr:'nec',name:'Tubitek — K-pop',lat:38.7106,lon:-9.1379,q:'Tubitek Rua do Crucifixo Lisboa',go:{i:'🚶',t:'4 min'}},
+ {t:'15:15',dur:'30 min',pr:'quero',name:'Gelateria La Verde',d:'Gelato do Dubai e cone XXL.',lat:38.7095,lon:-9.1360,q:'Gelateria La Verde Lisboa',go:{i:'🚢',t:'barco + carro (~30 min)'}},
+ {t:'17:00',dur:'45 min',name:'Byeol Music — K-pop (Almada)',d:'Sugestão minha, perto de casa (até 19h). Ligar antes: 923 564 661.',lat:38.6767,lon:-9.1607,q:'Byeol Music Almada'}
+],bonus:[
+ {name:'Floco Loco & Co (raspadinha)',d:'Campo de Ourique · ~10 min do Chiado',q:'Floco Loco Rua Coelho da Rocha Lisboa',pr:'nec'},
+ {name:'Myka Greek (iogurte grego)',d:'Campo de Ourique · na mesma rua do Floco Loco',q:'Myka Greek Rua Coelho da Rocha 94 Lisboa',pr:'muito'},
+ {name:'The B Club (bolsas/pulseiras)',d:'Av. de Roma · norte, de carro',q:'The B Club Avenida de Roma 23B Lisboa',pr:'quero'},
+ {name:'Canaã (bijuterias)',d:'Av. de Roma 64C · mesma rua da B Club',q:'Canaã bijuterias Avenida de Roma 64C Lisboa'}
+],tip:'Tudo no Chiado/Baixa é a pé. O barco evita portagem e estacionamento.'},
+'14':{stops:[
+ {t:'09:30',dur:'1h15',pr:'muito',name:'Feira da Ladra (Alfama)',d:'Só abre ter/sáb — hoje é o dia! Feira de velharias.',lat:38.7159,lon:-9.1256,q:'Feira da Ladra Campo de Santa Clara',go:{i:'🚗',t:'~15 min até o Parque das Nações'}},
+ {t:'11:30',dur:'2h',name:'Oceanário de Lisboa',d:'Sugestão minha. Reserve o horário online — tanque central gigante.',lat:38.7636,lon:-9.0937,q:'Oceanário de Lisboa',go:{i:'🚶',t:'5 min'}},
+ {t:'13:45',dur:'1h',name:'Almoço no Parque das Nações',lat:38.7633,lon:-9.0947,q:'Parque das Nações Lisboa',go:{i:'🚶',t:'5 min'}},
+ {t:'15:00',dur:'45 min',name:'Inki — K-pop (Moscavide)',d:'Sugestão minha, ao lado do Oceanário.',lat:38.7776,lon:-9.0996,q:'Inki Kpop Moscavide',go:{i:'🚗',t:'~25 min pra casa'}}
+],bonus:[
+ {name:'Rose Garden (brunch cor-de-rosa)',d:'Odivelas · ótimo pra começar o dia',q:'Rose Garden brunch Famões Odivelas',pr:'quero'},
+ {name:'CAM Gulbenkian + Conbini (anime)',d:'Sugestão · Avenidas Novas · grátis <18',q:'CAM Centro Arte Moderna Gulbenkian Lisboa'},
+ {name:'Immersivus Gallery (arte imersiva)',d:'Sugestão · Amoreiras',q:'Immersivus Gallery Amoreiras Lisboa'}
+],tipT:'warn',tipI:'🔄',tip:'Alternativa do dia: <b>Sintra</b> (Palácio da Pena) — lindo, mas chegue antes das 9h30.'},
+'15':{stops:[
+ {t:'09:30',dur:'45 min',name:'Pastéis de Belém',lat:38.6976,lon:-9.2033,q:'Pastéis de Belém',go:{i:'🚶',t:'5 min'}},
+ {t:'10:30',dur:'30 min',name:'MAAT (telhado grátis)',lat:38.6957,lon:-9.1960,q:'MAAT Belém',go:{i:'🚗',t:'~25 min pelo Eixo Norte-Sul'}},
+ {t:'12:00',name:'Aeroporto de Lisboa',d:'Check-in, almoço e Victoria\'s Secret (Terminal 1!).',lat:38.7742,lon:-9.1342,q:'Aeroporto Humberto Delgado Lisboa',go:{i:'✈️',t:'15h30 → chega 19h30'}},
+ {t:'19:30',name:'Chegada a Amsterdã → trem p/ Haia',d:'Jantar leve perto de casa.'}
+]},
+'16':{msg:'Primeiro dia com os amigos em Haia — programa deles, sem planejamento.',tipT:'warn',tipI:'✨',tip:'Se terminarem cedo: <b>Escher in Het Paleis</b> ou uma volta pela Chinatown (Yatta, Kokoro) + bubble tea. Veja a aba <b>Haia</b>.'},
+'17':{lockers:LOCKERS,hotel:HOTEL,stops:[
+ {t:'09:30',dur:'~50 min',name:'Trem Den Haag → Amsterdam',d:'Hoje dormem em Amsterdã — levem a mala de 1 noite. Dá pra deixar no hotel (bag drop) ou num locker até o check-in. Chega ~10:20.',lat:52.3791,lon:4.9003,q:'Amsterdam Centraal',go:{i:'🚶',t:'6 min'}},
+ {t:'10:30',dur:'40 min',pr:'quero',name:'Henk Manga + KeaPOP (Zeedijk)',d:'KeaPOP (K-pop, da sua lista) + Henk (mangá/figures), lado a lado.',lat:52.3735,lon:4.9013,q:'Henk Comics Manga Amsterdam',go:{i:'🚶',t:'8 min'}},
+ {t:'11:15',dur:'25 min',pr:'nec',name:'Normal (Nieuwendijk)',lat:52.3760,lon:4.8955,q:'Normal Nieuwendijk Amsterdam',go:{i:'🚶',t:'3 min (ao lado)'}},
+ {t:'11:45',dur:'50 min',pr:'quero',name:'Primark (a maior da Holanda)',d:'8.200 m², 7 andares. Entradas pela Damrak e pela Nieuwendijk (do lado da Normal).',lat:52.3745,lon:4.8942,q:'Primark Damrak Amsterdam',go:{i:'🚶',t:'4 min → Dam'}},
+ {t:'12:40',dur:'40 min',pr:'quero',name:'De Bijenkorf (Dam)',d:'A grande loja de departamentos chique, na praça Dam.',lat:52.3730,lon:4.8925,q:'De Bijenkorf Amsterdam',go:{i:'🚶',t:'stroopwafel ali perto'}},
+ {t:'13:25',dur:'15 min',name:'Fabel Friet (fritas)',d:'As fritas frescas mais famosas de Amsterdã — a caminho, na Damrak.',lat:52.3750,lon:4.8945,q:'Fabel Friet Damrak 58 Amsterdam',go:{i:'🚶',t:'4 min'}},
+ {t:'13:45',dur:'25 min',name:'Chun Café (sanduíche coreano)',d:'Sanduíche coreano + matcha — a cara dela. Costuma ter fila (fecha 17h).',lat:52.3735,lon:4.8900,q:'Chun Cafe Spuistraat 122 Amsterdam',go:{i:'🚶',t:'5 min'}},
+ {t:'14:15',dur:'15 min',name:'Van Wonderen (stroopwafel)',d:'Stroopwafel gigante com chocolate (o do TikTok), na Kalverstraat.',lat:52.3668,lon:4.8899,q:'Van Wonderen Stroopwafels Kalverstraat',go:{i:'🚊',t:'tram 2/12 → Museumplein'}},
+ {t:'14:45',dur:'1h15',name:'Moco Museum',d:'Banksy, Basquiat, Keith Haring, Pink Room — bem a cara dela. Reserve o horário (~14h45).',lat:52.3585,lon:4.8810,q:'Moco Museum Amsterdam',go:{i:'🚶',t:'5 min até o hotel'}},
+ {t:'16:05',name:'Check-in — Catalonia Vondel',d:'Check-in a partir das 15h. Deixar as malas e descansar; fica coladinho no Museumplein/Vondelpark.',q:'Catalonia Vondel Amsterdam',go:{i:'🚶',t:'descansar e sair pro jantar'}},
+ {t:'19:00',name:'Jantar — The Pancake Bakery',d:'Panquecas holandesas famosas, no Jordaan (perto da Casa de Anne Frank).',lat:52.3746,lon:4.8836,q:'The Pancake Bakery Prinsengracht Amsterdam',go:{i:'🌙',t:'volta a pé/tram pro hotel'}}
+],bonus:[
+ {name:'Coolblue Amsterdam West (tentar Oura Ring)',d:'Bilderdijkstraat 91 · perto do hotel. ⚠️ LIGAR ANTES: pode não ter Oura em loja; confirmar estoque e tamanho.',q:'Coolblue Amsterdam West Bilderdijkstraat 91'},
+ {name:'Amazing Oriental (snacks asiáticos)',d:'Sugestão · Nieuwmarkt 27',q:'Amazing Oriental Nieuwmarkt'},
+ {name:'Vlieger Papier (papelaria histórica)',d:'Amstel 34 · perto da Munt',q:'Vlieger papier Amstel 34 Amsterdam',pr:'op'},
+ {name:'Rijksmuseum',d:'Sugestão · no Museumplein',q:'Rijksmuseum Amsterdam'},
+ {name:'Miniso (Sanrio/plushies)',d:'Sugestão · Kalverstraat',q:'Miniso Kalverstraat Amsterdam'}
+],tipT:'nl',tipI:'🎟️',tip:'Comer & comprar: o almoço vira um mini food-crawl no centro (Fabel Friet + Chun + Van Wonderen) — tudo rápido, é só grazing. Controle o tempo na Primark e reserve o Moco pra ~14h45. Hoje dormem em Amsterdã (Catalonia Vondel).'},
+'18':{lockers:LOCKERS,hotel:HOTEL,stops:[
+ {t:'09:15',name:'Check-out — Catalonia Vondel',d:'Check-out até 12h. Deixe as malas na recepção pra buscar no fim do dia.',q:'Catalonia Vondel Amsterdam',go:{i:'🚊',t:'tram → Westergas (~20 min)'}},
+ {t:'10:30',dur:'1h15',name:'Fabrique des Lumières',d:'Ingresso reservado às 10h30. Arte imersiva projetada (Van Gogh, Vermeer, Monet).',lat:52.3866,lon:4.8720,q:'Fabrique des Lumières Amsterdam',go:{i:'🚶',t:'~10 min → Nassauplein'}},
+ {t:'12:00',dur:'25 min',name:'Dumplings (Nassauplein)',d:'Barraquinha de dumplings na beira do Westerpark, a caminho do centro. Fecha às segundas.',lat:52.3845,lon:4.8792,q:'Dumplings Nassauplein 60 Amsterdam',go:{i:'🚶',t:'8 min'}},
+ {t:'12:35',dur:'30 min',name:'Winkel 43 (torta de maçã)',d:'A famosa appeltaart holandesa, no Noordermarkt (Jordaan).',lat:52.3801,lon:4.8870,q:'Winkel 43 Noordermarkt Amsterdam',go:{i:'🚶',t:'4 min'}},
+ {t:'13:10',dur:'20 min',name:"Davie's (pastrami)",d:'O sanduíche Reuben de pastrami viral do Jordaan (aberto Qua–Dom).',lat:52.3762,lon:4.8828,q:'Davies Tweede Leliedwarsstraat 13 Amsterdam',go:{i:'🚶',t:'3 min'}},
+ {t:'13:35',dur:'15 min',name:'Lourens (crookie)',d:'Padaria viral — crookie e croissant de Dubai (fecha 19h).',lat:52.3745,lon:4.8862,q:'Lourens Oude Leliestraat 15 Amsterdam',go:{i:'🚶',t:'6 min → Kalverstraat'}},
+ {t:'14:00',dur:'25 min',pr:'quero',name:'Uniqlo (Kalverstraat)',d:'Flagship de 3 andares (entra pela Kalverstraat 11 ou pelo Rokin).',lat:52.3715,lon:4.8933,q:'Uniqlo Kalverstraat Amsterdam',go:{i:'🚶',t:'descer a Kalverstraat'}},
+ {t:'14:30',dur:'20 min',pr:'nec',name:'Flying Tiger (Kalverstraat)',lat:52.3705,lon:4.8912,q:'Flying Tiger Kalverstraat Amsterdam',go:{i:'🚶',t:'3 min'}},
+ {t:'14:55',dur:'35 min',pr:'nec',name:'Hollister + Miniso + Intertoys',d:'Hollister (necessário) + Intertoys (quero ir) + Miniso (sugestão), na Kalverstraat.',lat:52.3685,lon:4.8905,q:'Kalverstraat Amsterdam',go:{i:'🚶',t:'descer até a Munt'}},
+ {t:'15:35',dur:'25 min',pr:'quero',name:'H&M flagship (Kalverstraat)',d:'Loja-âncora no prédio histórico Bonneterie, 2.600 m².',lat:52.3672,lon:4.8925,q:'H&M Kalverstraat Amsterdam',go:{i:'🚶',t:'4 min até o Spui'}},
+ {t:'16:05',dur:'15 min',name:'Vleminckx (fritas)',lat:52.3685,lon:4.8894,q:'Vleminckx Amsterdam',go:{i:'🚶',t:'2 min'}},
+ {t:'16:25',dur:'15 min',name:'Van Stapele (cookie)',d:'O cookie de chocolate recheado, quentinho — sai da fôrma na hora.',lat:52.3689,lon:4.8885,q:'Van Stapele Koekmakerij Heisteeg Amsterdam',go:{i:'🚶',t:'8 min → Leidsestraat'}},
+ {t:'16:50',dur:'20 min',pr:'nec',name:'Brandy Melville (Leidsestraat)',lat:52.3646,lon:4.8845,q:'Brandy Melville Leidsestraat Amsterdam',go:{i:'🚶',t:'2 min'}},
+ {t:'17:15',dur:'30 min',name:'Hey!Hallyu + A Space Oddity',d:'Sugestão minha: K-pop + figures/Pokémon.',lat:52.3639,lon:4.8839,q:'Hey Hallyu Amsterdam Prinsengracht',go:{i:'🚶',t:'6 min'}},
+ {t:'17:55',dur:'20 min',pr:'op',name:'Nijntje / Miffy',lat:52.3620,lon:4.8880,q:'De Winkel van Nijntje Nieuwe Spiegelstraat Amsterdam',go:{i:'🚶',t:'passar no hotel pegar as malas'}},
+ {t:'18:25',name:'Pegar malas + trem pra Haia',d:'Passar no Catalonia Vondel, pegar as malas e voltar de trem.',q:'Catalonia Vondel Amsterdam',go:{i:'🚆',t:'trem ~50 min pra Haia'}}
+],bonus:[
+ {name:'STRAAT Museum (grafite gigante)',d:'Sugestão · NDSM, balsa grátis da Central',q:'STRAAT Museum Amsterdam NDSM'},
+ {name:'Chatime (bubble tea)',d:'Sugestão · Kalverstraat',q:'Chatime Kalverstraat Amsterdam'},
+ {name:'Kknekki (pulseiras)',d:'Da sua lista, mas só online (kknekki.nl) — sem loja física',q:'kknekki.nl',pr:'op'}
+],tipT:'nl',tipI:'🍴',tip:'Sábado "comer & comprar": Fabrique às 10h30 (saia cedo, malas na recepção), depois um food-crawl no Jordaan (Dumplings → Winkel 43 → Davie\'s → Lourens) e a varredura da Kalverstraat. Quase tudo é rápido (pegar e andar) — pulem o que a fome não acompanhar. Com tudo, o trem sai ~18h25.'},
+'19':{msg:'Segundo dia com os amigos em Haia — programa deles.',tipT:'warn',tipI:'✨',tip:'Se sobrar tempo: <b>Scheveningen</b> só pra comer (kibbeling, gelato) e ver a roda-gigante — sem fazer praia.'},
+'20':{stops:[
+ {t:'09:30',name:'Manhã livre em Haia',d:'Últimas comprinhas / o que faltou.',go:{i:'🚆',t:'~35 min até Schiphol'}},
+ {t:'12:00',name:'Den Haag → Schiphol',d:'Chegar com folga.',go:{i:'✈️',t:'16h40 → chega 18h45'}},
+ {t:'16:40',name:'Voo AMS → LIS',d:'Última noite na margem sul.'}
+]},
+'21':{msg:'✈️ <b>10h00</b> — Voo de volta ao Brasil. Chegue cedo no aeroporto. Fim da viagem! 🧳'}
+};
+var PRL={nec:'Necessário',muito:'Quero muito',quero:'Quero ir',op:'Opcional'};
+function prTag(pr){ return pr?'<span class="tag '+pr+'">'+PRL[pr]+'</span>':''; }
+var CIC={loja:'🛍️',kpop:'💿',museu:'🎨',comida:'🍔',anime:'🎌',fofura:'🧸',feira:'🛍️',aquario:'🐟',trajeto:'🚉',refeicao:'🍽️',voo:'✈️',hotel:'🏨'};
+var KLBL={sug:'Sugestão',trajeto:'Trajeto',refeicao:'Refeição',voo:'Voo',hotel:'Hotel'};
+// Detalhes por local (por 'q' e por nome). img opcional = URL de foto (se você quiser pôr a fachada real).
+var DET={
+'Amora Seixal':{cat:'trajeto',k:'trajeto',ab:'Aeroporto → casa; pegar o carro do irmão e descansar.'},
+'LX Factory Lisboa':{cat:'museu',k:'sug',ab:'Fábrica reconvertida com street art (a abelha do Bordalo II), lojas criativas e a livraria Ler Devagar.',ad:'R. Rodrigues de Faria 103, Alcântara',ct:'Entrada grátis'},
+'Time Out Market Lisboa':{cat:'comida',k:'sug',ab:'Mercado gastronômico: ramen, frango coreano, hambúrguer, pastéis.',ad:'Av. 24 de Julho 49, Cais do Sodré',ct:'Pratos ~9–16€'},
+'Cacilhas terminal fluvial':{cat:'trajeto',k:'trajeto',ab:'Deixe o carro em Cacilhas e cruze de barco até o Cais do Sodré (10 min, vista linda).',ct:'~1,55€'},
+'Sephora Armazéns do Chiado Lisboa':{cat:'loja',lg:'sephora.com',ab:'Cosméticos e maquiagem.',ad:'Armazéns do Chiado, Rua do Carmo 2',ct:'€€'},
+'Muji Rua do Carmo Lisboa':{cat:'loja',lg:'muji.com',ab:'Papelaria e objetos minimalistas japoneses.',ad:'Rua do Carmo 65-73',ct:'€€'},
+'Primor Rua Garrett Lisboa':{cat:'loja',lg:'primor.eu',ab:'Perfumaria e cosméticos low cost.',ad:'Rua Garrett 13-23',ct:'€'},
+'Pull and Bear Rua Nova do Almada Lisboa':{cat:'loja',lg:'pullandbear.com',ab:'Roupas jovens.',ad:'Rua Nova do Almada 89-101',ct:'€€'},
+'Normal Rua do Ouro 243 Lisboa':{cat:'loja',lg:'normal.dk',ab:'Beleza, snacks e achadinhos — ocupa um prédio inteiro.',ad:'Rua do Ouro 243 (junto ao Elevador de Santa Justa)',ct:'€'},
+'Tubitek Rua do Crucifixo Lisboa':{cat:'kpop',ab:'Loja de discos com boa seção de K-pop.',ad:'Rua do Crucifixo 79',ct:'€€'},
+'Gelateria La Verde Lisboa':{cat:'comida',ab:'Gelato artesanal — chocolate do Dubai e cone XXL.',ad:'Tv. das Pedras Negras 18, Baixa',ct:'~4–6€'},
+'Byeol Music Almada':{cat:'kpop',k:'sug',ab:'Loja de K-pop na margem sul. Ligar antes: 923 564 661.',ad:'Piedense Forum, Cova da Piedade, Almada',ct:'Álbuns ~20–29€'},
+'Feira da Ladra Campo de Santa Clara':{cat:'feira',ab:'A maior feira de velharias de Lisboa (desde 1272). Só abre ter/sáb.',ad:'Campo de Santa Clara, Alfama',ct:'Grátis entrar'},
+'Oceanário de Lisboa':{cat:'aquario',lg:'oceanario.pt',k:'sug',ab:'Um dos melhores aquários da Europa, tanque central gigante.',ad:'Esplanada Dom Carlos I, Parque das Nações',ct:'Criança ~15–18€ · adulto ~25–31€'},
+'Parque das Nações Lisboa':{cat:'refeicao',k:'refeicao',ab:'Almoço à beira-rio no Parque das Nações.',ct:'~12€'},
+'Inki Kpop Moscavide':{cat:'kpop',k:'sug',ab:'Loja + lounge de K-pop: discos, lightsticks, photocards.',ad:'Moscavide',ct:'€€'},
+'Pastéis de Belém':{cat:'comida',lg:'pasteisdebelem.pt',k:'sug',ab:'Os pastéis de nata originais desde 1837.',ad:'R. de Belém 84-92',ct:'~1,40€ cada'},
+'MAAT Belém':{cat:'museu',k:'sug',ab:'Edifício ondulado icônico; caminhar no telhado é grátis.',ad:'Av. Brasília, Belém',ct:'Telhado grátis'},
+'Aeroporto Humberto Delgado Lisboa':{cat:'voo',k:'voo',ab:'Check-in, almoço e Victoria\'s Secret (Terminal 1 — necessário da lista dela!).',ad:'Aeroporto Humberto Delgado'},
+'Amsterdam Centraal':{cat:'trajeto',k:'trajeto',ab:'Den Haag Centraal → Amsterdam Centraal (~50 min). Pague por aproximação (OVpay).',ct:'~€14–17'},
+'Henk Comics Manga Amsterdam':{cat:'kpop',ab:'KeaPOP (K-pop, da sua lista) coladinha na Henk (mangá/figures).',ad:'Zeedijk 89–101',ct:'€€'},
+'Amazing Oriental Nieuwmarkt':{cat:'comida',lg:'amazingoriental.com',k:'sug',ab:'Supermercado asiático gigante: snacks coreanos, doces, ramyeon.',ad:'Nieuwmarkt 27',ct:'€'},
+'Normal Nieuwendijk Amsterdam':{cat:'loja',lg:'normal.nl',ab:'Beleza, snacks e achadinhos.',ad:'Nieuwendijk 118',ct:'€'},
+'Flying Tiger Kalverstraat Amsterdam':{cat:'loja',lg:'flyingtiger.com',ab:'Bugigangas divertidas e baratas.',ad:'Kalverstraat 36-38',ct:'€1–10'},
+'Van Wonderen Stroopwafels Kalverstraat':{cat:'comida',ab:'Stroopwafel gigante com chocolate (o do TikTok) + fritas belgas ali perto.',ad:'Kalverstraat 190',ct:'~€12'},
+'Moco Museum Amsterdam':{cat:'museu',lg:'mocomuseum.com',k:'sug',ab:'Banksy, Basquiat, Keith Haring, Pink Room. Reserve horário.',ad:'Honthorststraat 20, Museumplein',ct:'~€18–23'},
+'Van Gogh Museum':{cat:'museu',lg:'vangoghmuseum.nl',k:'sug',ab:'Clássico imperdível. Entrada só com horário marcado.',ad:'Museumplein 6',ct:'Adulto €25 · grátis <18'},
+'Kalverstraat Amsterdam':{cat:'loja',lg:'hollisterco.com',ab:'Hollister (necessário), Intertoys (quero ir) e Miniso (sugestão) na mesma rua.',ad:'Kalverstraat',ct:'€€'},
+'Primark Damrak Amsterdam':{cat:'loja',lg:'primark.com',ab:'A maior Primark da Holanda: 8.200 m², 7 andares (roupa, casa, beleza). Entradas pela Damrak e pela Nieuwendijk.',ad:'Damrak 77',ct:'€ (baratíssimo)'},
+'De Bijenkorf Amsterdam':{cat:'loja',lg:'debijenkorf.nl',ab:'A grande loja de departamentos chique de Amsterdã, no Dam — moda, beleza, marcas premium.',ad:'Dam 1',ct:'€€€'},
+'Uniqlo Kalverstraat Amsterdam':{cat:'loja',lg:'uniqlo.com',ab:'Flagship de 3 andares (básicos japoneses) — entra pela Kalverstraat ou pelo Rokin.',ad:'Kalverstraat 11 / Rokin 12',ct:'€€'},
+'H&M Kalverstraat Amsterdam':{cat:'loja',lg:'hm.com',ab:'Loja-âncora da H&M no prédio histórico Bonneterie, 2.600 m².',ad:'Kalverstraat 181-183',ct:'€€'},
+'Vleminckx Amsterdam':{cat:'comida',k:'refeicao',ab:'As batatas fritas belgas mais famosas da cidade.',ad:'Voetboogstraat 33',ct:'€4–6'},
+'The Pancake Bakery Prinsengracht Amsterdam':{cat:'comida',k:'refeicao',ab:'Panquecas holandesas doces e salgadas — clássico no Jordaan, perto da Casa de Anne Frank.',ad:'Prinsengracht 191',ct:'~€12–17'},
+'Brandy Melville Leidsestraat Amsterdam':{cat:'loja',lg:'brandymelville.com',ab:'Roupas.',ad:'Leidsestraat 70-72',ct:'€€'},
+'Hey Hallyu Amsterdam Prinsengracht':{cat:'kpop',k:'sug',ab:'K-pop oficial (Hey!Hallyu) + figures/Pokémon (A Space Oddity).',ad:'Prinsengracht 454B / 204',ct:'€€'},
+'De Winkel van Nijntje Nieuwe Spiegelstraat Amsterdam':{cat:'fofura',ab:'Loja oficial da Miffy (nijntje).',ad:'Nieuwe Spiegelstraat 61',ct:'€€'},
+'Fabrique des Lumières Amsterdam':{cat:'museu',lg:'fabrique-lumieres.com',k:'sug',ab:'Arte imersiva projetada (Van Gogh, Vermeer, Monet).',ad:'Pazzanistraat 37, Westergas',ct:'~€14–18'},
+'Fabel Friet Damrak 58 Amsterdam':{cat:'comida',lg:'fabelfriet.nl',ab:'Fritas frescas premiadas (batata Agria) com molhos — das mais famosas da cidade.',ad:'Damrak 58',ct:'€4–6'},
+'Chun Cafe Spuistraat 122 Amsterdam':{cat:'comida',lg:'chun-amsterdam.com',ab:'Sanduíches coreanos + matcha latte, viral no TikTok. Também na Berenstraat e Warmoesstraat.',ad:'Spuistraat 122 (aberto 10–17h)',ct:'€8–13'},
+'Dumplings Nassauplein 60 Amsterdam':{cat:'comida',ab:'Barraquinha de dumplings chineses na beira do Westerpark. Fecha às segundas.',ad:'Nassauplein 60 (Westerpark)',ct:'€6–10'},
+'Winkel 43 Noordermarkt Amsterdam':{cat:'comida',lg:'winkel43.nl',ab:'A appeltaart (torta de maçã) mais famosa de Amsterdã, no Noordermarkt.',ad:'Noordermarkt 43, Jordaan',ct:'~€5 a fatia'},
+'Davies Tweede Leliedwarsstraat 13 Amsterdam':{cat:'comida',lg:'daviesamsterdam.com',ab:'Sanduíches artesanais — o Reuben de pastrami é o hit. Aberto Qua–Dom.',ad:'Tweede Leliedwarsstraat 13, Jordaan',ct:'€9–14'},
+'Lourens Oude Leliestraat 15 Amsterdam':{cat:'comida',ab:'Padaria viral: crookie (croissant+cookie), croissant de Dubai e de chocolate branco. Fecha 19h.',ad:'Oude Leliestraat 15',ct:'€4–8'},
+'Van Stapele Koekmakerij Heisteeg Amsterdam':{cat:'comida',lg:'vanstapele.com',ab:'Um produto só: o cookie de chocolate com recheio de chocolate branco, servido quentinho.',ad:'Heisteeg 4 (junto ao Spui)',ct:'~€2,50'},
+'Almoço — Time Out Market':{cat:'refeicao',k:'refeicao'},
+'Almoço + stroopwafel/fritas':{cat:'refeicao',k:'refeicao'},
+'Manhã livre em Haia':{cat:'loja',k:'sug',ab:'Últimas comprinhas ou pegar o que faltou.'},
+'Den Haag → Schiphol':{cat:'trajeto',k:'trajeto',ab:'Trem direto Den Haag → Schiphol (~35 min).',ct:'~€8'},
+'Voo AMS → LIS':{cat:'voo',k:'voo',ab:'Chegada a Lisboa 18h45.'},
+'Chegada a Amsterdã → trem p/ Haia':{cat:'trajeto',k:'trajeto',ab:'Chegada 19h30 → trem para Haia; jantar leve perto de casa.'},
+'Catalonia Vondel Amsterdam':{cat:'hotel',k:'hotel',ab:'Hotel de 1 noite (sex→sáb). Check-in 15h · check-out 12h. Coladinho no Museumplein/Vondelpark.',ad:'Vondelstraat 120, Amsterdam'},
+'Pegar malas + trem pra Haia':{cat:'trajeto',k:'trajeto'}
+};
+function agTog(b){ var it=b.closest('.ag-item'); var open=it.classList.toggle('exp'); b.innerHTML=open?'detalhes ⌃':'detalhes ⌄'; }
+function thumbHTML(info){
+  var icon=CIC[info.cat]||'📍';
+  var media=info.img?'<img src="'+info.img+'" alt="" loading="lazy" onerror="this.remove()">':(info.lg?'<img src="https://logo.clearbit.com/'+info.lg+'" alt="" loading="lazy" onerror="this.remove()">':'');
+  return '<span class="ag-thumb">'+media+'<em>'+icon+'</em></span>';
+}
+function renderDay(day){
+  var box=document.querySelector('.agenda[data-day="'+day+'"]');
+  if(!box || box.dataset.done) return;
+  var p=PLAN[day]; if(!p){ box.dataset.done='1'; return; }
+  var hasMap=p.stops && p.stops.some(function(s){return s.lat;});
+  var h='';
+  if(hasMap) h+='<div class="daymap" id="map-'+day+'"><div class="ldg">🗺️ O mapa aparece quando você estiver com internet.</div></div>';
+  if(hasMap && p.lockers) h+='<div class="ag-cap"><b></b>🔒 Guarda-volumes (azul)'+(p.hotel?' · <b style="background:#ff6fa5"></b>🏨 Hotel (rosa)':'')+'</div>';
+  if(p.msg) h+='<div class="ag-msg">'+p.msg+'</div>';
+  if(p.stops){
+    h+='<ul class="ag-list">';
+    p.stops.forEach(function(s,i){
+      var info={}; var a=DET[s.q], b=DET[s.name];
+      if(a) for(var k1 in a) info[k1]=a[k1];
+      if(b) for(var k2 in b) info[k2]=b[k2];
+      var mark=s.pr?prTag(s.pr):(info.k?'<span class="tag '+(info.k==='sug'?'sug':'k')+'">'+KLBL[info.k]+'</span>':'');
+      h+='<li class="ag-item">'+thumbHTML(info)+'<div class="ag-num">'+(i+1)+'</div>';
+      h+='<div class="ag-time">'+s.t+(s.dur?'<span class="ag-dur">'+s.dur+'</span>':'')+mark+'</div>';
+      var nm=s.q?'<a href="comgooglemaps://?q='+encodeURIComponent(s.q)+'" target="_blank" rel="noopener">'+s.name+'</a>':s.name;
+      h+='<div class="ag-name">'+nm+'</div>';
+      if(info.ab||info.ad||info.ct){
+        h+='<button class="ag-exp" onclick="agTog(this)">detalhes ⌄</button>';
+        h+='<div class="ag-more">';
+        if(info.ab) h+='<div class="ab">'+info.ab+'</div>';
+        if(info.ad) h+='<div class="row">📍 '+info.ad+'</div>';
+        if(info.ct) h+='<div class="row">💶 '+info.ct+'</div>';
+        h+='</div>';
+      }
+      h+='</li>';
+      if(s.go) h+='<div class="ag-go"><span class="ln">'+s.go.i+'</span>'+s.go.t+'</div>';
+    });
+    h+='</ul>';
+  }
+  if(p.bonus&&p.bonus.length){
+    h+='<div class="ag-bonus"><div class="ag-bonus-h">✨ Bônus do dia — se sobrar tempo</div>';
+    p.bonus.forEach(function(b){
+      h+='<a class="ag-b" href="comgooglemaps://?q='+encodeURIComponent(b.q)+'" target="_blank" rel="noopener"><div class="n">'+b.name+'</div>'+(b.d?'<div class="d">'+b.d+'</div>':'')+prTag(b.pr)+'</a>';
+    });
+    h+='</div>';
+  }
+  if(p.tip) h+='<div class="note '+(p.tipT||'tip')+'"><span class="ni">'+(p.tipI||'💡')+'</span><span>'+p.tip+'</span></div>';
+  box.innerHTML=h; box.dataset.done='1';
+  var mapEl=document.getElementById('map-'+day);
+  if(mapEl) initMap(day,p,mapEl);
+}
+function initMap(day,p,el){
+  if(typeof L==='undefined' || !navigator.onLine) return;
+  var pts=p.stops.filter(function(s){return s.lat;});
+  if(!pts.length) return;
+  el.innerHTML='';
+  try{
+    var map=L.map(el,{scrollWheelZoom:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+    var ll=[];
+    p.stops.forEach(function(s,i){
+      if(!s.lat) return;
+      var num=i+1;
+      var icon=L.divIcon({className:'',html:'<div style="background:#cbf149;color:#0f1804;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px monospace;border:2px solid #0f1804;box-shadow:0 2px 6px rgba(0,0,0,.6)">'+num+'</div>',iconSize:[26,26],iconAnchor:[13,13]});
+      L.marker([s.lat,s.lon],{icon:icon}).addTo(map).bindPopup(num+'. '+s.name);
+      ll.push([s.lat,s.lon]);
+    });
+    if(ll.length>1) L.polyline(ll,{color:'#cbf149',weight:3,opacity:.9,dashArray:'3,7'}).addTo(map);
+    if(p.lockers) p.lockers.forEach(function(k){
+      var ik=L.divIcon({className:'',html:'<div style="background:#38bdf8;color:#04222e;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid #04222e;box-shadow:0 2px 6px rgba(0,0,0,.6)">🔒</div>',iconSize:[24,24],iconAnchor:[12,12]});
+      L.marker([k.lat,k.lon],{icon:ik}).addTo(map).bindPopup('🔒 '+k.name+'<br>~€7/dia · 24h<br><a href="comgooglemaps://?q='+encodeURIComponent(k.q)+'" target="_blank" rel="noopener">abrir no mapa</a>');
+      ll.push([k.lat,k.lon]);
+    });
+    if(p.hotel){
+      var ih=L.divIcon({className:'',html:'<div style="background:#ff6fa5;color:#2a0715;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #2a0715;box-shadow:0 2px 6px rgba(0,0,0,.6)">🏨</div>',iconSize:[26,26],iconAnchor:[13,13]});
+      L.marker([p.hotel.lat,p.hotel.lon],{icon:ih}).addTo(map).bindPopup('🏨 '+p.hotel.name+'<br><a href="comgooglemaps://?q='+encodeURIComponent(p.hotel.q)+'" target="_blank" rel="noopener">abrir no mapa</a>');
+      ll.push([p.hotel.lat,p.hotel.lon]);
+    }
+    map.fitBounds(ll,{padding:[28,28],maxZoom:15});
+    setTimeout(function(){map.invalidateSize();},250);
+  }catch(e){ el.innerHTML='<div class="ldg">🗺️ Não consegui carregar o mapa agora.</div>'; }
+}
+document.querySelectorAll('.day.open').forEach(function(d){ var el=d.querySelector('.dnum .d'); if(el) renderDay(el.textContent.trim()); });
+</script>
+</body>
+</html>
