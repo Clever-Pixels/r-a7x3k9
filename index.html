@@ -1067,6 +1067,12 @@ var DKEY='roteiro-done-v1';
 var DONE={}; try{DONE=JSON.parse(localStorage.getItem(DKEY)||'{}');}catch(e){}
 function saveDone(){try{localStorage.setItem(DKEY,JSON.stringify(DONE));}catch(e){}}
 function isActionable(info){var c=info&&info.cat; return ['trajeto','voo','hotel'].indexOf(c)<0;}
+var MARKERS={};
+function markerIcon(num,done){
+  var bg=done?'#0f1804':'#cbf149', fg=done?'#cbf149':'#0f1804', tx=done?'✓':num;
+  return L.divIcon({className:'',html:'<div style="background:'+bg+';color:'+fg+';width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px monospace;border:2px solid #0f1804;box-shadow:0 2px 6px rgba(0,0,0,.6)'+(done?';opacity:.92':'')+'">'+tx+'</div>',iconSize:[26,26],iconAnchor:[13,13]});
+}
+window.updateMarker=function(day,idx,done){ var mk=MARKERS[day+'-'+idx]; if(mk && typeof L!=='undefined') mk.setIcon(markerIcon((+idx)+1,done)); };
 window.toggleDone=function(day,idx,el){
   var kk=day+'-'+idx,on;
   if(DONE[kk]){delete DONE[kk];on=false;}else{DONE[kk]=1;on=true;}
@@ -1074,6 +1080,7 @@ window.toggleDone=function(day,idx,el){
   var li=el.closest('.ag-item'); if(li) li.classList.toggle('done',on);
   el.textContent=on?'✓':String((+idx)+1);
   updateProgress(day);
+  if(window.updateMarker) window.updateMarker(day,idx,on);
   if(window.__syncNow) window.__syncNow();
 };
 function updateProgress(day){
@@ -1092,6 +1099,7 @@ window.clearDoneDay=function(day){
     delete DONE[day+'-'+li.dataset.idx];
     li.classList.remove('done');
     var num=li.querySelector('.ag-num'); if(num) num.textContent=String((+li.dataset.idx)+1);
+    if(window.updateMarker) window.updateMarker(day, +li.dataset.idx, false);
   });
   saveDone(); updateProgress(day); if(window.__syncNow) window.__syncNow();
 };
@@ -1160,8 +1168,8 @@ function initMap(day,p,el){
     p.stops.forEach(function(s,i){
       if(!s.lat) return;
       var num=i+1;
-      var icon=L.divIcon({className:'',html:'<div style="background:#cbf149;color:#0f1804;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px monospace;border:2px solid #0f1804;box-shadow:0 2px 6px rgba(0,0,0,.6)">'+num+'</div>',iconSize:[26,26],iconAnchor:[13,13]});
-      L.marker([s.lat,s.lon],{icon:icon}).addTo(map).bindPopup(num+'. '+s.name);
+      var mk=L.marker([s.lat,s.lon],{icon:markerIcon(num, DONE[day+'-'+i])}).addTo(map).bindPopup(num+'. '+s.name);
+      MARKERS[day+'-'+i]=mk;
       ll.push([s.lat,s.lon]);
     });
     if(ll.length>1) L.polyline(ll,{color:'#cbf149',weight:3,opacity:.9,dashArray:'3,7'}).addTo(map);
