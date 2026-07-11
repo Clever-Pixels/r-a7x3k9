@@ -362,6 +362,19 @@ body{font-family:var(--f-ui)}
 .ag-hrs.info{color:var(--ink2);background:rgba(128,128,128,.16)}
 .ag-hrs.warn{color:#3a2600;background:#f4c34e}
 .ag-hrs.closed{color:#fff;background:#c0453b}
+.ag-prog{display:flex;align-items:center;gap:9px;margin:2px 0 14px}
+.ag-prog-bar{flex:1;height:6px;border-radius:999px;background:rgba(128,128,128,.22);overflow:hidden}
+.ag-prog-bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .35s var(--sp)}
+.ag-prog-lbl{font-family:var(--f-mono);font-size:11px;font-weight:700;color:var(--ink2);white-space:nowrap}
+.ag-prog.alldone .ag-prog-lbl{color:var(--accent-d)}
+.ag-prog.alldone .ag-prog-bar i{background:var(--accent-d)}
+.ag-prog-reset{font-family:var(--f-mono);font-size:10px;color:var(--ink2);background:none;border:1px solid var(--cardline);border-radius:999px;padding:3px 10px;cursor:pointer}
+.ag-num.tick{cursor:pointer;transition:transform .15s,background .2s,color .2s}
+.ag-num.tick:active{transform:scale(.82)}
+.ag-item.done{opacity:.5}
+.ag-item.done .ag-name{text-decoration:line-through;text-decoration-thickness:1.5px}
+.ag-item.done .ag-hrs{display:none}
+.ag-item.done .ag-num{background:var(--accent-soft);color:var(--accent-d)}
 .ag-name a{color:inherit;text-decoration:none;border-bottom:1.5px solid var(--accent-soft)}
 .ag-desc{font-size:13.5px;color:var(--ink2);font-weight:500;margin-top:2px}
 .ag-go{display:flex;align-items:center;gap:9px;margin:9px 0 13px;font-size:12.5px;color:var(--ink2);font-weight:600}
@@ -1045,6 +1058,39 @@ function thumbHTML(info){
   var media=info.img?'<img src="'+info.img+'" alt="" loading="lazy" onerror="this.remove()">':(info.lg?'<img src="https://logo.clearbit.com/'+info.lg+'" alt="" loading="lazy" onerror="this.remove()">':'');
   return '<span class="ag-thumb">'+media+'<em>'+icon+'</em></span>';
 }
+/* ===== Marcar parada como feita (inteligente) ===== */
+var DKEY='roteiro-done-v1';
+var DONE={}; try{DONE=JSON.parse(localStorage.getItem(DKEY)||'{}');}catch(e){}
+function saveDone(){try{localStorage.setItem(DKEY,JSON.stringify(DONE));}catch(e){}}
+function isActionable(info){var c=info&&info.cat; return ['trajeto','voo','hotel'].indexOf(c)<0;}
+window.toggleDone=function(day,idx,el){
+  var kk=day+'-'+idx,on;
+  if(DONE[kk]){delete DONE[kk];on=false;}else{DONE[kk]=1;on=true;}
+  saveDone();
+  var li=el.closest('.ag-item'); if(li) li.classList.toggle('done',on);
+  el.textContent=on?'✓':String((+idx)+1);
+  updateProgress(day);
+  if(window.__syncNow) window.__syncNow();
+};
+function updateProgress(day){
+  var box=document.querySelector('.agenda[data-day="'+day+'"]'); if(!box) return;
+  var pr=box.querySelector('.ag-prog'); if(!pr) return;
+  var items=box.querySelectorAll('.ag-item.stop-actionable'), total=items.length, done=0;
+  items.forEach(function(li){ if(li.classList.contains('done')) done++; });
+  var bar=pr.querySelector('i'), lbl=pr.querySelector('.ag-prog-lbl');
+  if(bar) bar.style.width=(total?(done/total*100):0)+'%';
+  if(lbl) lbl.textContent=(total&&done===total)?('✓ tudo feito ('+total+')'):(done+'/'+total+' feito');
+  pr.classList.toggle('alldone', total>0&&done===total);
+}
+window.clearDoneDay=function(day){
+  var box=document.querySelector('.agenda[data-day="'+day+'"]'); if(!box) return;
+  box.querySelectorAll('.ag-item.stop-actionable').forEach(function(li){
+    delete DONE[day+'-'+li.dataset.idx];
+    li.classList.remove('done');
+    var num=li.querySelector('.ag-num'); if(num) num.textContent=String((+li.dataset.idx)+1);
+  });
+  saveDone(); updateProgress(day); if(window.__syncNow) window.__syncNow();
+};
 function renderDay(day){
   var box=document.querySelector('.agenda[data-day="'+day+'"]');
   if(!box || box.dataset.done) return;
@@ -1055,6 +1101,7 @@ function renderDay(day){
   if(hasMap && p.lockers) h+='<div class="ag-cap"><b></b>🔒 Guarda-volumes (azul)'+(p.hotel?' · <b style="background:#ff6fa5"></b>🏨 Hotel (rosa)':'')+'</div>';
   if(p.msg) h+='<div class="ag-msg">'+p.msg+'</div>';
   if(p.stops){
+    h+='<div class="ag-prog"><div class="ag-prog-bar"><i></i></div><span class="ag-prog-lbl">0/0 feito</span><button type="button" class="ag-prog-reset" onclick="clearDoneDay(\''+day+'\')">limpar</button></div>';
     h+='<ul class="ag-list">';
     p.stops.forEach(function(s,i){
       var info={}; var a=DET[s.q], b=DET[s.name];
@@ -1062,7 +1109,10 @@ function renderDay(day){
       if(b) for(var k2 in b) info[k2]=b[k2];
       if(HRS[s.q]) info.hrs=HRS[s.q]; else if(HRS[s.name]) info.hrs=HRS[s.name];
       var mark=s.pr?prTag(s.pr):(info.k?'<span class="tag '+(info.k==='sug'?'sug':'k')+'">'+KLBL[info.k]+'</span>':'');
-      h+='<li class="ag-item">'+thumbHTML(info)+'<div class="ag-num">'+(i+1)+'</div>';
+      var act=isActionable(info), dn=act&&DONE[day+'-'+i];
+      h+='<li class="ag-item'+(act?' stop-actionable':'')+(dn?' done':'')+'" data-idx="'+i+'">'+thumbHTML(info);
+      if(act) h+='<div class="ag-num tick" role="button" tabindex="0" title="marcar como feito" onclick="toggleDone(\''+day+'\','+i+',this)">'+(dn?'✓':(i+1))+'</div>';
+      else h+='<div class="ag-num">'+(i+1)+'</div>';
       h+='<div class="ag-time">'+s.t+(s.dur?'<span class="ag-dur">'+s.dur+'</span>':'')+mark+'</div>';
       var nm=s.q?'<a href="comgooglemaps://?q='+encodeURIComponent(s.q)+'" target="_blank" rel="noopener">'+s.name+'</a>':s.name;
       h+='<div class="ag-name">'+nm+'</div>';
@@ -1089,6 +1139,7 @@ function renderDay(day){
   }
   if(p.tip) h+='<div class="note '+(p.tipT||'tip')+'"><span class="ni">'+(p.tipI||'💡')+'</span><span>'+p.tip+'</span></div>';
   box.innerHTML=h; box.dataset.done='1';
+  updateProgress(day);
   var mapEl=document.getElementById('map-'+day);
   if(mapEl) initMap(day,p,mapEl);
 }
@@ -1193,13 +1244,17 @@ document.querySelectorAll('.day.open').forEach(function(d){ var el=d.querySelect
     }
     var nm=d.getHours()*60+d.getMinutes(), cur=-1;
     p.stops.forEach(function(s,i){ var t=toMin(s.t); if(t!=null && t<=nm) cur=i; });
-    var curS=cur>=0?p.stops[cur]:null, nextS=p.stops[cur+1]||null;
-    jumpIdx=cur>=0?cur:0; highlight(k, cur>=0?cur:null);
+    var curS=cur>=0?p.stops[cur]:null;
+    var nextS=null, ni=-1;
+    for(var j=cur+1;j<p.stops.length;j++){ if(!(typeof DONE!=='undefined'&&DONE[k+'-'+j])){ nextS=p.stops[j]; ni=j; break; } }
+    var hasRem=(cur+1)<p.stops.length;
+    jumpIdx = ni>=0?ni:(cur>=0?cur:0); highlight(k, cur>=0?cur:null);
     var h=head+'<div class="nc-rows">';
     h+= curS ? '<div class="nc-row nc-now"><span class="nc-k">AGORA</span><span class="nc-t">'+curS.t+'</span><span class="nc-n">'+esc(curS.name)+'</span></div>'
              : '<div class="nc-row nc-now"><span class="nc-k">AGORA</span><span class="nc-t">–</span><span class="nc-n">Ainda não começou hoje</span></div>';
-    h+= nextS ? '<div class="nc-row nc-next"><span class="nc-k">PRÓXIMO</span><span class="nc-t">'+nextS.t+'</span><span class="nc-n">'+esc(nextS.name)+'</span></div>'
-              : '<div class="nc-row nc-next"><span class="nc-k">DEPOIS</span><span class="nc-t">🌙</span><span class="nc-n">Dia encerrado</span></div>';
+    if(nextS){ h+='<div class="nc-row nc-next"><span class="nc-k">PRÓXIMO</span><span class="nc-t">'+nextS.t+'</span><span class="nc-n">'+esc(nextS.name)+'</span></div>'; }
+    else if(hasRem){ h+='<div class="nc-row nc-next"><span class="nc-k">✓ FEITO</span><span class="nc-t">🎉</span><span class="nc-n">Resto do dia concluído</span></div>'; }
+    else { h+='<div class="nc-row nc-next"><span class="nc-k">DEPOIS</span><span class="nc-t">🌙</span><span class="nc-n">Dia encerrado</span></div>'; }
     h+='</div><span class="nc-cta">tocar para ver no roteiro ↓</span>';
     show(h);
   }
@@ -1211,6 +1266,7 @@ document.querySelectorAll('.day.open').forEach(function(d){ var el=d.querySelect
       if(typeof renderDay==='function') renderDay(k);
     }
   }
+  window.__syncNow=update;
   autoOpenToday(); update(); setInterval(update, 60000);
 })();
 </script>
