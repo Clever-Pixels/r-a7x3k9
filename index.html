@@ -410,6 +410,26 @@ body{font-family:var(--f-ui)}
       <div class="count" id="count"><span class="big" id="cd">–</span><span class="lbl" id="cdl">para a<br>decolagem</span></div>
     </header>
 
+    <style>
+    .nowcard{display:block; width:100%; text-align:left; font:inherit; margin:0 0 16px; border-radius:var(--r); background:linear-gradient(180deg, color-mix(in srgb,var(--accent) 15%, var(--card)), var(--card)); border:1px solid var(--accent-soft); box-shadow:var(--sh-sm); padding:14px 16px; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .18s var(--sp),box-shadow .25s}
+    .nowcard:active{transform:scale(.99)}
+    .nowcard[hidden]{display:none}
+    .nc-top{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px}
+    .nc-badge{font-family:"DM Mono",monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-d); background:var(--accent-soft); padding:4px 9px; border-radius:999px; font-weight:700}
+    .nc-sub{font-family:"Fraunces",serif; font-weight:600; font-size:15px; color:var(--ink)}
+    .nc-rows{display:flex; flex-direction:column; gap:8px}
+    .nc-row{display:grid; grid-template-columns:58px auto 1fr; align-items:center; gap:10px}
+    .nc-k{font-family:"DM Mono",monospace; font-size:9px; letter-spacing:.1em; color:var(--ink2)}
+    .nc-now .nc-k{color:var(--accent-d)}
+    .nc-t{font-family:"DM Mono",monospace; font-size:13px; font-weight:500; color:var(--ink)}
+    .nc-n{font-size:14.5px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+    .nc-next{opacity:.7}
+    .nc-msg{font-size:14px; color:var(--ink2); font-weight:500; line-height:1.45}
+    .nc-cta{font-family:"DM Mono",monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent-d); margin-top:10px; display:block}
+    .ag-item.now{outline:2px solid var(--accent); outline-offset:3px; border-radius:12px}
+    </style>
+    <button type="button" id="nowcard" class="nowcard" hidden onclick="nowJump()"></button>
+
     <article class="day pt open reveal">
       <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">12</span><span class="m">Dom</span></div><div class="day-meta"><div class="wd">Lisboa · chegada</div><div class="tt">Chegada &amp; margem sul</div></div><div class="chev">▾</div></button>
       <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="12"></div></div></div></div>
@@ -1030,6 +1050,95 @@ function initMap(day,p,el){
   }catch(e){ el.innerHTML='<div class="ldg">🗺️ Não consegui carregar o mapa agora.</div>'; }
 }
 document.querySelectorAll('.day.open').forEach(function(d){ var el=d.querySelector('.dnum .d'); if(el) renderDay(el.textContent.trim()); });
+</script>
+<script>
+/* ===== Banner "Agora → Próximo" + abrir no dia de hoje =====
+   Teste: adicione ?now=2026-07-18T15:30 na URL pra simular data/hora. */
+(function(){
+  var q=new URLSearchParams(location.search);
+  var SIM=q.get('now');
+  function now(){ return SIM ? new Date(SIM) : new Date(); }
+  var card=document.getElementById('nowcard');
+  if(!card) return;
+  var jumpDay=null, jumpIdx=null;
+  function toMin(t){ var m=(t||'').match(/(\d{1,2}):(\d{2})/); return m ? (+m[1]*60 + +m[2]) : null; }
+  function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function dayInfo(k){
+    var art=[].slice.call(document.querySelectorAll('article.day')).filter(function(a){var d=a.querySelector('.dnum .d'); return d && d.textContent.trim()===k;})[0];
+    if(!art) return {};
+    var g=function(sel){var e=art.querySelector(sel); return e?e.textContent.trim():'';};
+    return {art:art, wd:g('.dnum .m'), tt:g('.day-meta .tt'), zone:g('.day-meta .wd')};
+  }
+  function openDay(k){
+    var di=dayInfo(k);
+    if(di.art && !di.art.classList.contains('open')){ di.art.classList.add('open'); var b=di.art.querySelector('.day-top'); if(b) b.setAttribute('aria-expanded','true'); }
+    if(typeof renderDay==='function') renderDay(k);
+  }
+  window.nowJump=function(){
+    if(jumpDay==null) return;
+    var rb=document.querySelector('.nav button[data-go="roteiro"]'); if(rb && !rb.classList.contains('on')) rb.click();
+    openDay(jumpDay);
+    setTimeout(function(){
+      var di=dayInfo(jumpDay); if(!di.art) return;
+      var items=di.art.querySelectorAll('.ag-item');
+      var el=(jumpIdx!=null && items[jumpIdx]) ? items[jumpIdx] : di.art;
+      if(el) el.scrollIntoView({block:'center',behavior:'smooth'});
+    },280);
+  };
+  function highlight(k, idx){
+    document.querySelectorAll('.ag-item.now').forEach(function(e){e.classList.remove('now');});
+    if(idx==null || k==null) return;
+    var di=dayInfo(k); if(!di.art) return;
+    var items=di.art.querySelectorAll('.ag-item'); if(items[idx]) items[idx].classList.add('now');
+  }
+  function tripDay(d){
+    var start=new Date('2026-07-12T00:00:00'), end=new Date('2026-07-21T23:59:59');
+    if(d<start){ return {pre:true, days:Math.ceil((new Date('2026-07-12T07:00:00')-d)/86400000)}; }
+    if(d>end){ return {post:true}; }
+    return {key:String(d.getDate())};
+  }
+  function show(html){ card.innerHTML=html; card.hidden=false; }
+  function update(){
+    var d=now(), info=tripDay(d);
+    if(info.pre){
+      jumpDay='12'; jumpIdx=null; highlight();
+      var n=info.days;
+      show('<div class="nc-top"><span class="nc-badge">Pré-viagem ✈️</span><span class="nc-sub">'+(n<=0?'É amanhã!':((n===1?'Falta ':'Faltam ')+n+' dia'+(n>1?'s':'')))+'</span></div><div class="nc-msg">Primeiro dia: <b>Dom 12/07</b> · chegada a Lisboa às 07h00.</div><span class="nc-cta">ver o roteiro ↓</span>');
+      return;
+    }
+    if(info.post){ jumpDay=null; jumpIdx=null; highlight();
+      show('<div class="nc-top"><span class="nc-badge">Fim 🧳</span><span class="nc-sub">Viagem concluída</span></div><div class="nc-msg">Esperamos que tenha sido incrível! 💛</div>'); return;
+    }
+    var k=info.key; jumpDay=k;
+    var di=dayInfo(k), p=(typeof PLAN!=='undefined')?PLAN[k]:null;
+    var head='<div class="nc-top"><span class="nc-badge">Hoje · Dia '+k+(di.wd?' · '+esc(di.wd):'')+'</span>'+(di.tt?'<span class="nc-sub">'+esc(di.tt)+'</span>':'')+'</div>';
+    if(!p || !p.stops || !p.stops.length){
+      jumpIdx=null; highlight();
+      show(head+'<div class="nc-msg">'+((p&&p.msg)?p.msg:esc(di.zone||'Dia livre.'))+'</div><span class="nc-cta">abrir o dia ↓</span>');
+      return;
+    }
+    var nm=d.getHours()*60+d.getMinutes(), cur=-1;
+    p.stops.forEach(function(s,i){ var t=toMin(s.t); if(t!=null && t<=nm) cur=i; });
+    var curS=cur>=0?p.stops[cur]:null, nextS=p.stops[cur+1]||null;
+    jumpIdx=cur>=0?cur:0; highlight(k, cur>=0?cur:null);
+    var h=head+'<div class="nc-rows">';
+    h+= curS ? '<div class="nc-row nc-now"><span class="nc-k">AGORA</span><span class="nc-t">'+curS.t+'</span><span class="nc-n">'+esc(curS.name)+'</span></div>'
+             : '<div class="nc-row nc-now"><span class="nc-k">AGORA</span><span class="nc-t">–</span><span class="nc-n">Ainda não começou hoje</span></div>';
+    h+= nextS ? '<div class="nc-row nc-next"><span class="nc-k">PRÓXIMO</span><span class="nc-t">'+nextS.t+'</span><span class="nc-n">'+esc(nextS.name)+'</span></div>'
+              : '<div class="nc-row nc-next"><span class="nc-k">DEPOIS</span><span class="nc-t">🌙</span><span class="nc-n">Dia encerrado</span></div>';
+    h+='</div><span class="nc-cta">tocar para ver no roteiro ↓</span>';
+    show(h);
+  }
+  function autoOpenToday(){
+    var info=tripDay(now()), k=info.key||'12', di=dayInfo(k);
+    if(di.art){
+      document.querySelectorAll('article.day.open').forEach(function(a){ if(a!==di.art){ a.classList.remove('open'); var b=a.querySelector('.day-top'); if(b) b.setAttribute('aria-expanded','false'); } });
+      di.art.classList.add('open'); var bt=di.art.querySelector('.day-top'); if(bt) bt.setAttribute('aria-expanded','true');
+      if(typeof renderDay==='function') renderDay(k);
+    }
+  }
+  autoOpenToday(); update(); setInterval(update, 60000);
+})();
 </script>
 </body>
 </html>
