@@ -1036,7 +1036,7 @@ function hrsBadge(info,day,t){
   }else{
     var tm=_m(t);
     if(tm!=null&&((o!=null&&tm<o)||(c!=null&&tm>=c))){cls='warn';txt='⚠ Fora do horário ('+H.o+'–'+H.c+')';}
-    else{cls='info';txt='🕒 '+H.o+'–'+H.c;}
+    else{cls='ok';txt='✓ Aberto · '+H.o+'–'+H.c;}
   }
   return '<div class="ag-hrs '+cls+'">'+txt+'</div>';
 }
