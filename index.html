@@ -487,8 +487,8 @@ body{font-family:var(--f-ui)}
       <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="18"></div></div></div></div>
     </article>
 
-    <article class="day flex reveal">
-      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">19</span><span class="m">Dom</span></div><div class="day-meta"><div class="wd">Haia · com amigos</div><div class="tt">Programa dos amigos</div></div><div class="chev">▾</div></button>
+    <article class="day nl reveal">
+      <button class="day-top" onclick="tog(this)"><div class="dnum"><span class="d">19</span><span class="m">Dom</span></div><div class="day-meta"><div class="wd">Amsterdã → Haia</div><div class="tt">Compras finais &amp; volta</div></div><div class="chev">▾</div></button>
       <div class="day-body"><div><div class="day-inner"><div class="agenda" data-day="19"></div></div></div></div>
     </article>
 
@@ -839,7 +839,7 @@ var LOCKERS=[
  {name:'Lockerpoint City Center (perto da Kalverstraat)',lat:52.3760,lon:4.8945,q:'Lockerpoint Nieuwezijds Kolk 18 Amsterdam'},
  {name:'Lockerpoint Museumplein (ao lado do Van Gogh/Moco)',lat:52.3585,lon:4.8790,q:'Lockerpoint Van Baerlestraat 33B Amsterdam'}
 ];
-var HOTEL={name:'Catalonia Vondel Amsterdam (1 noite sex→sáb)',lat:52.3607,lon:4.8760,q:'Catalonia Vondel Amsterdam'};
+var HOTEL={name:'Catalonia Vondel Amsterdam (2 noites sex→dom)',lat:52.3607,lon:4.8760,q:'Catalonia Vondel Amsterdam'};
 var PLAN={
 '12':{stops:[
  {t:'07:00',name:'Chegada + casa em Amora',d:'Aeroporto → casa, pegar o carro do irmão e descansar.',lat:38.626,lon:-9.121,q:'Amora Seixal',go:{i:'🚗',t:'~25 min pela Ponte 25 de Abril'}},
@@ -901,29 +901,35 @@ var PLAN={
  {name:'Miniso (Sanrio/plushies)',d:'Sugestão · Kalverstraat',q:'Miniso Kalverstraat Amsterdam'}
 ],tipT:'nl',tipI:'🎨',tip:'Nova lógica: <b>museu de manhã sem peso</b> — larga a mala no hotel e resolve o Oura (Coolblue) logo cedo, do lado da base. Compras só à tarde, de <b>norte→sul</b>, e as sacolas só no último trecho até o hotel. Jantar perto da base. Reserva do Moco é flexível.'},
 '18':{lockers:LOCKERS,hotel:HOTEL,stops:[
- {t:'09:15',name:'Check-out — Catalonia Vondel',d:'Check-out até 12h. Deixe as malas na recepção pra buscar no fim do dia.',q:'Catalonia Vondel Amsterdam',go:{i:'🚊',t:'tram → Jordaan (café) ~15 min'}},
- {t:'09:40',dur:'30 min',name:'The Pancake Bakery (café)',d:'Panqueca holandesa de manhã, no Jordaan — a caminho da Fabrique (perto da Casa de Anne Frank).',lat:52.3746,lon:4.8836,q:'The Pancake Bakery Prinsengracht Amsterdam',go:{i:'🚶',t:'~10 min → Westergas'}},
- {t:'10:30',dur:'1h15',name:'Fabrique des Lumières',d:'Ingresso reservado às 10h30. Arte imersiva projetada (Van Gogh, Vermeer, Monet).',lat:52.3866,lon:4.8720,q:'Fabrique des Lumières Amsterdam',go:{i:'🚶',t:'~10 min → Nassauplein'}},
- {t:'12:00',dur:'25 min',name:'Dumplings (Nassauplein)',d:'Barraquinha de dumplings na beira do Westerpark, a caminho do centro. Fecha às segundas.',lat:52.3845,lon:4.8792,q:'Dumplings Nassauplein 60 Amsterdam',go:{i:'🚶',t:'8 min'}},
- {t:'12:35',dur:'30 min',name:'Winkel 43 (torta de maçã)',d:'A famosa appeltaart holandesa, no Noordermarkt (Jordaan).',lat:52.3801,lon:4.8870,q:'Winkel 43 Noordermarkt Amsterdam',go:{i:'🚶',t:'4 min'}},
- {t:'13:10',dur:'20 min',name:"Davie's (pastrami)",d:'O sanduíche Reuben de pastrami viral do Jordaan (aberto Qua–Dom).',lat:52.3762,lon:4.8828,q:'Davies Tweede Leliedwarsstraat 13 Amsterdam',go:{i:'🚶',t:'3 min'}},
- {t:'13:35',dur:'15 min',name:'Lourens (crookie)',d:'Padaria viral — crookie e croissant de Dubai (fecha 19h).',lat:52.3745,lon:4.8862,q:'Lourens Oude Leliestraat 15 Amsterdam',go:{i:'🚶',t:'6 min → Kalverstraat'}},
- {t:'14:00',dur:'25 min',pr:'quero',name:'Uniqlo (Kalverstraat)',d:'Flagship de 3 andares (entra pela Kalverstraat 11 ou pelo Rokin).',lat:52.3715,lon:4.8933,q:'Uniqlo Kalverstraat Amsterdam',go:{i:'🚶',t:'descer a Kalverstraat'}},
- {t:'14:30',dur:'20 min',pr:'nec',name:'Flying Tiger (Kalverstraat)',lat:52.3705,lon:4.8912,q:'Flying Tiger Kalverstraat Amsterdam',go:{i:'🚶',t:'3 min'}},
- {t:'14:55',dur:'35 min',pr:'nec',name:'Hollister + Miniso + Intertoys',d:'Hollister (necessário) + Intertoys (quero ir) + Miniso (sugestão), na Kalverstraat.',lat:52.3685,lon:4.8905,q:'Kalverstraat Amsterdam',go:{i:'🚶',t:'descer até a Munt'}},
- {t:'15:35',dur:'25 min',pr:'quero',name:'H&M flagship (Kalverstraat)',d:'Loja-âncora no prédio histórico Bonneterie, 2.600 m².',lat:52.3672,lon:4.8925,q:'H&M Kalverstraat Amsterdam',go:{i:'🚶',t:'4 min até o Spui'}},
- {t:'16:05',dur:'15 min',name:'Vleminckx (fritas)',lat:52.3685,lon:4.8894,q:'Vleminckx Amsterdam',go:{i:'🚶',t:'2 min'}},
- {t:'16:25',dur:'15 min',name:'Van Stapele (cookie)',d:'O cookie de chocolate recheado, quentinho — sai da fôrma na hora.',lat:52.3689,lon:4.8885,q:'Van Stapele Koekmakerij Heisteeg Amsterdam',go:{i:'🚶',t:'8 min → Leidsestraat'}},
- {t:'16:50',dur:'20 min',pr:'nec',name:'Brandy Melville (Leidsestraat)',lat:52.3646,lon:4.8845,q:'Brandy Melville Leidsestraat Amsterdam',go:{i:'🚶',t:'2 min'}},
- {t:'17:15',dur:'30 min',name:'Hey!Hallyu + A Space Oddity',d:'Sugestão minha: K-pop + figures/Pokémon.',lat:52.3639,lon:4.8839,q:'Hey Hallyu Amsterdam Prinsengracht',go:{i:'🚶',t:'6 min'}},
- {t:'17:55',dur:'20 min',pr:'op',name:'Nijntje / Miffy',lat:52.3620,lon:4.8880,q:'De Winkel van Nijntje Nieuwe Spiegelstraat Amsterdam',go:{i:'🚶',t:'passar no hotel pegar as malas'}},
- {t:'18:25',name:'Pegar malas + trem pra Haia',d:'Passar no Catalonia Vondel, pegar as malas e voltar de trem.',q:'Catalonia Vondel Amsterdam',go:{i:'🚆',t:'trem ~50 min pra Haia'}}
+ {t:'09:40',dur:'30 min',name:'The Pancake Bakery (café)',d:'Hoje NÃO tem check-out — dormem +1 noite. Panqueca de manhã no Jordaan, a caminho da Fabrique.',lat:52.3746,lon:4.8836,q:'The Pancake Bakery Prinsengracht Amsterdam',go:{i:'🚶',t:'~10 min → Westergas'}},
+ {t:'10:30',dur:'1h15',name:'Fabrique des Lumières',d:'Ingresso reservado às 10h30. Arte imersiva (Van Gogh, Vermeer, Monet). Museu de manhã, sem peso.',lat:52.3866,lon:4.8720,q:'Fabrique des Lumières Amsterdam',go:{i:'🚶',t:'~10 min → Nassauplein'}},
+ {t:'12:00',dur:'25 min',name:'Dumplings (Nassauplein)',d:'Barraquinha na beira do Westerpark. Fecha às segundas (hoje ok).',lat:52.3845,lon:4.8792,q:'Dumplings Nassauplein 60 Amsterdam',go:{i:'🚶',t:'8 min'}},
+ {t:'12:35',dur:'30 min',name:'Winkel 43 (torta de maçã)',d:'A famosa appeltaart, no Noordermarkt (Jordaan).',lat:52.3801,lon:4.8870,q:'Winkel 43 Noordermarkt Amsterdam',go:{i:'🚶',t:'4 min'}},
+ {t:'13:10',dur:'20 min',name:"Davie's (pastrami)",d:'O Reuben viral do Jordaan (Qua–Dom).',lat:52.3762,lon:4.8828,q:'Davies Tweede Leliedwarsstraat 13 Amsterdam',go:{i:'🚶',t:'3 min'}},
+ {t:'13:35',dur:'15 min',name:'Lourens (crookie)',d:'Padaria viral — crookie e croissant de Dubai.',lat:52.3745,lon:4.8862,q:'Lourens Oude Leliestraat 15 Amsterdam',go:{i:'🚶',t:'8 min → Kalverstraat'}},
+ {t:'14:00',dur:'30 min',pr:'quero',name:'Uniqlo (Kalverstraat)',d:'Flagship de 3 andares (Kalverstraat 11 / Rokin).',lat:52.3715,lon:4.8933,q:'Uniqlo Kalverstraat Amsterdam',go:{i:'🚶',t:'descer a Kalverstraat'}},
+ {t:'14:35',dur:'20 min',pr:'nec',name:'Flying Tiger (Kalverstraat)',lat:52.3705,lon:4.8912,q:'Flying Tiger Kalverstraat Amsterdam',go:{i:'🚶',t:'3 min'}},
+ {t:'15:00',dur:'40 min',pr:'nec',name:'Hollister + Miniso + Intertoys',d:'Hollister (necessário) + Intertoys + Miniso, na Kalverstraat.',lat:52.3685,lon:4.8905,q:'Kalverstraat Amsterdam',go:{i:'🚶',t:'descer até a Munt'}},
+ {t:'15:45',dur:'30 min',pr:'quero',name:'H&M flagship (Kalverstraat)',d:'Loja-âncora no prédio histórico Bonneterie, 2.600 m².',lat:52.3672,lon:4.8925,q:'H&M Kalverstraat Amsterdam',go:{i:'🚊',t:'tram → hotel (largar sacolas)'}},
+ {t:'16:30',name:'Hotel — descansar / largar sacolas',d:'Volta ao Catalonia Vondel (dorme aqui de novo). Sem corrida: o resto da lista (lojas do sul + Van Stapele/Vleminckx) foi pro domingo.',lat:52.3607,lon:4.8760,q:'Catalonia Vondel Amsterdam',go:{i:'🌙',t:'jantar perto, a pé'}},
+ {t:'19:30',name:'Jantar perto do hotel (De Pijp)',d:'Noite tranquila em Amsterdã — sem trem hoje.',lat:52.3555,lon:4.8915,q:'De Pijp Amsterdam',go:{i:'🌙',t:'volta a pé pro hotel'}}
 ],bonus:[
  {name:'STRAAT Museum (grafite gigante)',d:'Sugestão · NDSM, balsa grátis da Central',q:'STRAAT Museum Amsterdam NDSM'},
  {name:'Chatime (bubble tea)',d:'Sugestão · Kalverstraat',q:'Chatime Kalverstraat Amsterdam'},
  {name:'Kknekki (pulseiras)',d:'Da sua lista, mas só online (kknekki.nl) — sem loja física',q:'kknekki.nl',pr:'op'}
-],tipT:'nl',tipI:'🍴',tip:'Sábado "comer & comprar": <b>café de panqueca no Jordaan</b> → Fabrique às 10h30 (malas na recepção, museu sem peso) → food-crawl no Jordaan (Dumplings → Winkel 43 → Davie\'s → Lourens) → varredura da Kalverstraat. Muita comida — com o "marcar feito" dá pra pular na hora. As compras terminam perto do hotel; pega as malas e trem ~18h25. Lockers disponíveis se quiser largar sacola no meio.'},
-'19':{msg:'Segundo dia com os amigos em Haia — programa deles.',tipT:'warn',tipI:'✨',tip:'Se sobrar tempo: <b>Scheveningen</b> só pra comer (kibbeling, gelato) e ver a roda-gigante — sem fazer praia.'},
+],tipT:'nl',tipI:'🎨',tip:'Sábado mais leve (agora dormem +1 noite): café de panqueca → <b>Fabrique de manhã (sem peso)</b> → food-crawl no Jordaan → Kalverstraat. As lojas do sul (Brandy, Hey!Hallyu, Nijntje) + Van Stapele/Vleminckx passaram pro domingo pra dar tempo. Noite livre em Amsterdã, sem trem.'},
+'19':{lockers:LOCKERS,hotel:HOTEL,stops:[
+ {t:'09:30',dur:'1h30',name:'Manhã tranquila perto do hotel',d:'Café da manhã em De Pijp ou volta no Vondelpark — perto da base, sem pressa (lojas abrem ~12h no domingo).',lat:52.3579,lon:4.8686,q:'Vondelpark Amsterdam',go:{i:'🚶',t:'volta ao hotel'}},
+ {t:'11:30',name:'Check-out — malas no lobby',d:'Check-out no Catalonia Vondel; deixem as malas no lobby pra pegar no fim da tarde.',lat:52.3607,lon:4.8760,q:'Catalonia Vondel Amsterdam',go:{i:'🚊',t:'tram → centro (~12 min)'}},
+ {t:'12:15',dur:'15 min',name:'Van Stapele (cookie)',d:'O cookie de chocolate recheado, quentinho.',lat:52.3689,lon:4.8885,q:'Van Stapele Koekmakerij Heisteeg Amsterdam',go:{i:'🚶',t:'2 min'}},
+ {t:'12:35',dur:'20 min',name:'Vleminckx (fritas)',d:'Almoço rápido — as fritas belgas famosas.',lat:52.3685,lon:4.8894,q:'Vleminckx Amsterdam',go:{i:'🚶',t:'8 min → Leidsestraat'}},
+ {t:'13:05',dur:'25 min',pr:'nec',name:'Brandy Melville (Leidsestraat)',lat:52.3646,lon:4.8845,q:'Brandy Melville Leidsestraat Amsterdam',go:{i:'🚶',t:'2 min'}},
+ {t:'13:40',dur:'30 min',name:'Hey!Hallyu + A Space Oddity',d:'K-pop + figures/Pokémon.',lat:52.3639,lon:4.8839,q:'Hey Hallyu Amsterdam Prinsengracht',go:{i:'🚶',t:'6 min'}},
+ {t:'14:20',dur:'20 min',pr:'op',name:'Nijntje / Miffy',lat:52.3620,lon:4.8880,q:'De Winkel van Nijntje Nieuwe Spiegelstraat Amsterdam',go:{i:'🚶',t:'perto do Museumplein'}},
+ {t:'14:50',name:'Tempo livre / o que faltou',d:'Folga pra terminar a lista, um gelato ou o 9 Straatjes — tudo perto da base.',q:'Negen Straatjes Amsterdam',go:{i:'🚶',t:'volta ao hotel pegar as malas'}},
+ {t:'16:30',name:'Pega as malas → segue pro trem',d:'Volta ao Catalonia Vondel, pega as malas no lobby.',lat:52.3607,lon:4.8760,q:'Catalonia Vondel Amsterdam',go:{i:'🚆',t:'trem ~50 min'}},
+ {t:'17:00',name:'Trem Amsterdam → Den Haag',d:'Fim do trecho em Amsterdã; chega em Haia ~17:45.',go:{i:'🚆',t:'~50 min'}}
+],tipT:'nl',tipI:'🛍️',tip:'Domingo relaxado: manhã perto do hotel → check-out (malas no lobby) → restante das compras (sul/centro, perto da base) → trem ~17h. ⚠️ No domingo Amsterdã quase tudo abre, só que mais tarde (~12h) e fecha ~18h — confirme a Hey!Hallyu (lojinha).'},
 '20':{stops:[
  {t:'09:30',name:'Manhã livre em Haia',d:'Últimas comprinhas / o que faltou.',go:{i:'🚆',t:'~35 min até Schiphol'}},
  {t:'12:00',name:'Den Haag → Schiphol',d:'Chegar com folga.',go:{i:'✈️',t:'16h40 → chega 18h45'}},
@@ -990,7 +996,7 @@ var DET={
 'Den Haag → Schiphol':{cat:'trajeto',k:'trajeto',ab:'Trem direto Den Haag → Schiphol (~35 min).',ct:'~€8'},
 'Voo AMS → LIS':{cat:'voo',k:'voo',ab:'Chegada a Lisboa 18h45.'},
 'Chegada a Amsterdã → trem p/ Haia':{cat:'trajeto',k:'trajeto',ab:'Chegada 19h30 → trem para Haia; jantar leve perto de casa.'},
-'Catalonia Vondel Amsterdam':{cat:'hotel',k:'hotel',ab:'Hotel de 1 noite (sex→sáb). Check-in 15h · check-out 12h. Coladinho no Museumplein/Vondelpark.',ad:'Vondelstraat 120, Amsterdam'},
+'Catalonia Vondel Amsterdam':{cat:'hotel',k:'hotel',ab:'Hotel de 2 noites (sex→dom). Check-in 15h · check-out 12h (dia 19, malas no lobby). Coladinho no Museumplein/Vondelpark.',ad:'Vondelstraat 120, Amsterdam'},
 'Pegar malas + trem pra Haia':{cat:'trajeto',k:'trajeto'}
 };
 function agTog(b){ var it=b.closest('.ag-item'); var open=it.classList.toggle('exp'); b.innerHTML=open?'detalhes ⌃':'detalhes ⌄'; }
